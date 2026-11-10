@@ -2441,26 +2441,29 @@ cvs.addEventListener('touchmove', function(e){
 }, {passive:false});
 cvs.addEventListener('touchend', function(e){ e.preventDefault(); touch.active = false; }, {passive:false});
 
-var mouse = { x: 0, y: 0, active: false, down: false, movedRecent: 0 };
+var mouse = { x: 0, y: 0, active: false, down: false };
 window.addEventListener('mousemove', function(e){
   mouse.x = e.clientX;
   mouse.y = e.clientY;
   mouse.active = true;
-  mouse.movedRecent = 2.0;
 });
 window.addEventListener('mousedown', function(e){
   actx();
   mouse.x = e.clientX;
   mouse.y = e.clientY;
   mouse.active = true;
-  mouse.down = true;
-  mouse.movedRecent = 2.0;
+  if (e.button === 0) mouse.down = true;
 });
 window.addEventListener('mouseup', function(e){
-  mouse.down = false;
+  if (e.button === 0) mouse.down = false;
 });
 window.addEventListener('mouseleave', function(e){
   mouse.down = false;
+});
+window.addEventListener('blur', function(){
+  keys = {};
+  mouse.down = false;
+  touch.active = false;
 });
 
 cvs.addEventListener('click', function(e){
@@ -4658,20 +4661,24 @@ function update(dt){
   p.muzzle = Math.max(0, p.muzzle - dt*14);
   p.squash = Math.max(0, p.squash - dt*4);
 
-  /* movement: WASD (Arrow keys are reserved for directional shooting) */
+  /* movement: WASD or Arrow keys */
   var mx = 0, my = 0;
-  if (keys['a']) mx--;
-  if (keys['d']) mx++;
-  if (keys['w']) my--;
-  if (keys['s']) my++;
+  if (keys['a'] || keys['arrowleft'])  mx--;
+  if (keys['d'] || keys['arrowright']) mx++;
+  if (keys['w'] || keys['arrowup'])    my--;
+  if (keys['s'] || keys['arrowdown'])  my++;
   if (touch.active){
     var tdx = touch.x - p.x, tdy = touch.y - p.y, td = Math.hypot(tdx, tdy);
     if (td > 26){ mx = tdx/td; my = tdy/td; }
   }
-  var ml = Math.hypot(mx, my) || 1;
-  mx /= ml; my /= ml;
+  var ml = Math.hypot(mx, my);
+  if (ml > 0.001){
+    mx /= ml; my /= ml;
+  } else {
+    mx = 0; my = 0;
+  }
 
-  if ((keys[' '] || keys['shift']) && p.dashT <= 0){
+  if ((keys['shift'] || keys[' ']) && p.dashT <= 0){
     var ddx = mx, ddy = my;
     if (ddx === 0 && ddy === 0){
       ddx = Math.cos(p.aim);
@@ -4706,6 +4713,9 @@ function update(dt){
     var currentSpeed = isSkillActive('timewarp') ? p.speed * 1.38 : p.speed;
     p.vx += (mx*currentSpeed - p.vx) * acc;
     p.vy += (my*currentSpeed - p.vy) * acc;
+    if (mx === 0 && my === 0 && Math.hypot(p.vx, p.vy) < 4){
+      p.vx = 0; p.vy = 0;
+    }
   }
 
   p.x = clamp(p.x + p.vx*dt, 34, ARENA-34);
@@ -4738,41 +4748,22 @@ function update(dt){
   G.camX += ((p.x + p.vx*0.12) - G.camX) * Math.min(1, dt*7);
   G.camY += ((p.y + p.vy*0.12) - G.camY) * Math.min(1, dt*7);
 
-  if (mouse && mouse.movedRecent > 0) {
-    mouse.movedRecent = Math.max(0, mouse.movedRecent - dt);
-  }
-
   /* Manual Aim with Smooth Aim Assist */
-  var sx = 0, sy = 0;
-  if (keys['arrowleft'])  sx--;
-  if (keys['arrowright']) sx++;
-  if (keys['arrowup'])    sy--;
-  if (keys['arrowdown'])  sy++;
-  var isArrowAim = (sx !== 0 || sy !== 0);
-
-  // 1. Determine raw manual intention angle
   var rawManualAim = p.aim;
-  var hasManualInput = false;
 
-  if (isArrowAim) {
-    rawManualAim = Math.atan2(sy, sx);
-    hasManualInput = true;
-  } else if (touch.active) {
+  if (touch.active){
     var tdx = touch.x - p.x, tdy = touch.y - p.y;
     if (Math.hypot(tdx, tdy) > 18){
       rawManualAim = Math.atan2(tdy, tdx);
-      hasManualInput = true;
     }
-  } else if (mouse.active && (mouse.movedRecent > 0 || mouse.down)) {
+  } else if (mouse.active){
     var mWorldX = G.camX + (mouse.x - W/2) / ZOOM;
     var mWorldY = G.camY + (mouse.y - H/2) / ZOOM;
     var mdx = mWorldX - p.x, mdy = mWorldY - p.y;
-    if (Math.hypot(mdx, mdy) > 20){
+    if (Math.hypot(mdx, mdy) > 12){
       rawManualAim = Math.atan2(mdy, mdx);
-      hasManualInput = true;
     }
   } else if (Math.hypot(p.vx, p.vy) > 25) {
-    // Maneuvering without explicit aiming input: ship heads toward movement vector
     rawManualAim = Math.atan2(p.vy, p.vx);
   }
 
@@ -4822,18 +4813,11 @@ function update(dt){
   }
 
   // 4. Smooth rotational interpolation
-  var turnSpeed = (hasManualInput || bestTarget) ? 26 : 10;
-  p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * turnSpeed));
+  p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * 26));
   var fireAngle = p.aim;
 
-  // 5. Smooth fire command
-  var shouldFire = false;
-  if (bestTarget !== null) {
-    shouldFire = true;
-  } else if (hasManualInput && (mouse.down || isArrowAim || touch.active || keys[' '])) {
-    shouldFire = true;
-  }
-
+  // 5. Fire command: ONLY fires when the player holds mouse button, touch, or fire key
+  var shouldFire = (mouse.down || touch.active || !!keys['control'] || !!keys['j'] || !!keys['k'] || !!keys['z']);
   G.playerFiring = shouldFire;
 
   p.fireT -= dt;
@@ -4852,7 +4836,7 @@ function update(dt){
         ang:a2, crit:isCrit, critMult: p.critMult || 2.5
       });
     }
-    p.vx -= Math.cos(fireAngle)*22; p.vy -= Math.sin(fireAngle)*22;
+    // Visual recoil only via p.recoil - no physics velocity kick (p.vx -= ...) so player stays under full control
     burst(p.x + Math.cos(fireAngle)*p.r*1.3, p.y + Math.sin(fireAngle)*p.r*1.3, '#cfefff', 3, fireAngle, 0.4);
     sound.shoot();
   }
@@ -7479,7 +7463,7 @@ function drawPlayer(){
   var t = G.t;
 
   // Determine visual scale from HP upgrades (does NOT affect physics radius p.r)
-  var visualScale = clamp(1 + (p.maxhp / 120 - 1) * 0.38, 1, 1.75);
+  var visualScale = clamp(1 + (p.maxhp / 120 - 1) * 0.12, 1, 1.35);
   var vr = r * visualScale;
 
   // Detect active skill overdrive state
@@ -7505,21 +7489,21 @@ function drawPlayer(){
     ctx.rotate(p.aim - p.hitAng);
   }
   ctx.translate(-p.recoil * r * 0.35, 0);
-  ctx.scale(1 + lean*0.14, 1 - lean*0.07);
+  ctx.scale(1 + lean*0.12, 1 - lean*0.06);
 
   /* === SHIELD BARRIER (orbiting hexagonal energy field) === */
   if (p.shield > 0 || p.maxShield > 0){
     var shieldFrac = (p.maxShield > 0) ? clamp(p.shield / p.maxShield, 0, 1) : 0;
-    var shieldR = vr * 2.6;
+    var shieldR = vr * 2.4;
     var hexCount = 6;
     var hexRot = t * 1.8;
     ctx.save();
-    ctx.lineWidth = 1.8;
+    ctx.lineWidth = 1.6;
     for (var hi = 0; hi < hexCount; hi++){
       var hexAng = hexRot + hi * (TAU / hexCount);
       var hx = Math.cos(hexAng) * shieldR;
       var hy = Math.sin(hexAng) * shieldR;
-      var hexSize = vr * 0.42;
+      var hexSize = vr * 0.38;
       ctx.save();
       ctx.translate(hx, hy);
       ctx.rotate(hexAng + t * 2.2);
@@ -7549,26 +7533,26 @@ function drawPlayer(){
   }
 
   /* === TWIN HIGH-VELOCITY PLASMA THRUSTERS (tiered by speed) === */
-  var flameL = (0.65 + Math.random()*0.45 + lean*1.1) * overdriveFlameBoost;
-  var thrusterColor = speedTier >= 1 ? 'rgba(180, 100, 255, 0.65)' : 'rgba(53, 240, 255, 0.6)';
+  var flameL = (0.65 + Math.random()*0.45 + lean*1.0) * overdriveFlameBoost;
+  var thrusterColor = speedTier >= 1 ? 'rgba(180, 100, 255, 0.65)' : 'rgba(53, 240, 255, 0.65)';
   var thrusterCore = speedTier >= 1 ? '#e0c0ff' : '#ffffff';
 
   for (var n = -1; n <= 1; n += 2){
     var ny = n * vr * 0.28;
     // Outer plasma plume
     ctx.beginPath();
-    ctx.moveTo(-vr*0.85, ny - vr*0.16);
-    ctx.lineTo(-vr*0.85 - vr*flameL, ny);
-    ctx.lineTo(-vr*0.85, ny + vr*0.16);
+    ctx.moveTo(-vr*0.75, ny - vr*0.16);
+    ctx.lineTo(-vr*0.75 - vr*flameL, ny);
+    ctx.lineTo(-vr*0.75, ny + vr*0.16);
     ctx.closePath();
     ctx.fillStyle = thrusterColor;
     ctx.fill();
 
     // Inner diamond white needle
     ctx.beginPath();
-    ctx.moveTo(-vr*0.85, ny - vr*0.08);
-    ctx.lineTo(-vr*0.85 - vr*flameL*0.55, ny);
-    ctx.lineTo(-vr*0.85, ny + vr*0.08);
+    ctx.moveTo(-vr*0.75, ny - vr*0.08);
+    ctx.lineTo(-vr*0.75 - vr*flameL*0.55, ny);
+    ctx.lineTo(-vr*0.75, ny + vr*0.08);
     ctx.closePath();
     ctx.fillStyle = thrusterCore;
     ctx.fill();
@@ -7576,115 +7560,65 @@ function drawPlayer(){
     // Tier 1+: Nozzle housing ring
     if (speedTier >= 1){
       ctx.beginPath();
-      ctx.arc(-vr*0.85, ny, vr*0.18, 0, TAU);
+      ctx.arc(-vr*0.75, ny, vr*0.16, 0, TAU);
       ctx.strokeStyle = 'rgba(180, 100, 255, 0.6)';
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.2;
       ctx.stroke();
     }
   }
 
   // Tier 2+: Outboard auxiliary wingtip thrusters
   if (speedTier >= 2){
-    var auxFlameL = flameL * 0.65;
+    var auxFlameL = flameL * 0.6;
     for (var ai = -1; ai <= 1; ai += 2){
-      var any = ai * vr * 0.92;
+      var any = ai * vr * 0.88;
       ctx.beginPath();
-      ctx.moveTo(-vr*0.72, any - vr*0.09);
-      ctx.lineTo(-vr*0.72 - vr*auxFlameL, any);
-      ctx.lineTo(-vr*0.72, any + vr*0.09);
+      ctx.moveTo(-vr*0.70, any - vr*0.08);
+      ctx.lineTo(-vr*0.70 - vr*auxFlameL, any);
+      ctx.lineTo(-vr*0.70, any + vr*0.08);
       ctx.closePath();
       ctx.fillStyle = 'rgba(255, 140, 60, 0.55)';
       ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-vr*0.72, any - vr*0.04);
-      ctx.lineTo(-vr*0.72 - vr*auxFlameL*0.5, any);
-      ctx.lineTo(-vr*0.72, any + vr*0.04);
-      ctx.closePath();
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      // Nozzle mount
-      ctx.beginPath();
-      ctx.arc(-vr*0.72, any, vr*0.10, 0, TAU);
-      ctx.strokeStyle = 'rgba(255, 140, 60, 0.5)';
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
     }
   }
 
   // Tier 3: Central high-output afterburner with shock-diamond pulses
   if (speedTier >= 3){
     var abFlameL = flameL * 1.35;
-    // Main plume
     ctx.beginPath();
-    ctx.moveTo(-vr*0.85, -vr*0.10);
-    ctx.lineTo(-vr*0.85 - vr*abFlameL, 0);
-    ctx.lineTo(-vr*0.85, vr*0.10);
+    ctx.moveTo(-vr*0.80, -vr*0.10);
+    ctx.lineTo(-vr*0.80 - vr*abFlameL, 0);
+    ctx.lineTo(-vr*0.80, vr*0.10);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 200, 60, 0.55)';
+    ctx.fillStyle = 'rgba(255, 200, 60, 0.65)';
     ctx.fill();
-    // Inner white core
     ctx.beginPath();
-    ctx.moveTo(-vr*0.85, -vr*0.05);
-    ctx.lineTo(-vr*0.85 - vr*abFlameL*0.6, 0);
-    ctx.lineTo(-vr*0.85, vr*0.05);
+    ctx.moveTo(-vr*0.80, -vr*0.05);
+    ctx.lineTo(-vr*0.80 - vr*abFlameL*0.6, 0);
+    ctx.lineTo(-vr*0.80, vr*0.05);
     ctx.closePath();
     ctx.fillStyle = '#ffffff';
     ctx.fill();
-    // Shock diamonds
-    var shockCount = 3;
-    for (var sd = 0; sd < shockCount; sd++){
-      var sdx = -vr*0.85 - vr*(0.25 + sd * 0.28);
-      var sdSize = vr * (0.06 - sd * 0.012);
-      ctx.beginPath();
-      ctx.moveTo(sdx - sdSize, 0);
-      ctx.lineTo(sdx, -sdSize * 1.4);
-      ctx.lineTo(sdx + sdSize, 0);
-      ctx.lineTo(sdx, sdSize * 1.4);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.8 - sd * 0.2) + ')';
-      ctx.fill();
-    }
   }
 
-  // Emit subtle trailing engine embers when moving
-  if (spd > 35 && Math.random() < 0.45 && G.parts.length < 900){
-    var noz = (Math.random() < 0.5 ? -1 : 1) * vr * 0.28;
-    var emberA = p.aim + Math.PI + rnd(-0.3, 0.3);
-    G.parts.push({
-      x: p.x - Math.cos(p.aim)*vr*0.85 - Math.sin(p.aim)*noz,
-      y: p.y - Math.sin(p.aim)*vr*0.85 + Math.cos(p.aim)*noz,
-      vx: Math.cos(emberA)*rnd(40, 110), vy: Math.sin(emberA)*rnd(40, 110),
-      life: rnd(0.18, 0.35), col: speedTier >= 1 ? '#c0a0ff' : '#55f2ff', size: rnd(1.2, 2.4), drag: 0.1
-    });
-  }
-
-  /* === WEAPON PODS (extra barrels when shots > 1) === */
+  /* === WEAPON HARDPOINTS (plasma cannons when shots > 1) === */
   if (p.shots > 1){
-    var barrelCount = Math.min(p.shots, 7);
-    var barrelSpread = vr * 0.85 / barrelCount;
-    ctx.fillStyle = '#0a0e1a';
     ctx.strokeStyle = '#35f0ff';
-    ctx.lineWidth = 1.4;
-    for (var bi = 0; bi < barrelCount; bi++){
-      var by = -vr * 0.42 + bi * barrelSpread + barrelSpread * 0.5;
-      // Barrel body
+    ctx.lineWidth = 1.6;
+    for (var bi = -1; bi <= 1; bi += 2){
+      var by = bi * vr * 0.44;
       ctx.beginPath();
-      ctx.moveTo(vr * 0.6, by - vr * 0.06);
-      ctx.lineTo(vr * 1.3, by - vr * 0.04);
-      ctx.lineTo(vr * 1.3, by + vr * 0.04);
-      ctx.lineTo(vr * 0.6, by + vr * 0.06);
-      ctx.closePath();
-      ctx.fill(); ctx.stroke();
-      // Muzzle glow
+      ctx.moveTo(vr * 0.1, by);
+      ctx.lineTo(vr * 0.75, by);
+      ctx.stroke();
       ctx.beginPath();
-      ctx.arc(vr * 1.3, by, vr * 0.04, 0, TAU);
-      ctx.fillStyle = '#35f0ff';
+      ctx.arc(vr * 0.75, by, 2, 0, TAU);
+      ctx.fillStyle = '#ffffff';
       ctx.fill();
-      ctx.fillStyle = '#0a0e1a';
     }
   }
 
-  /* === Muzzle Starburst Flare === */
+  /* === Muzzle Flash Flare === */
   if (p.muzzle > 0){
     ctx.beginPath();
     ctx.arc(vr*1.45, 0, vr*0.55*p.muzzle, 0, TAU);
@@ -7696,78 +7630,11 @@ function drawPlayer(){
     ctx.fill();
   }
 
-  /* === HEAVY ARMORED OUTER CHASSIS (when maxhp > 120) === */
-  if (p.maxhp > 120){
-    ctx.beginPath();
-    ctx.moveTo(vr*1.32, 0);
-    ctx.lineTo(vr*0.10, -vr*0.72);
-    ctx.lineTo(-vr*0.60, -vr*1.08);
-    ctx.lineTo(-vr*0.90, -vr*0.40);
-    ctx.lineTo(-vr*0.90, vr*0.40);
-    ctx.lineTo(-vr*0.60, vr*1.08);
-    ctx.lineTo(vr*0.10, vr*0.72);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(6,10,18,0.55)';
-    ctx.fill();
-    ctx.lineWidth = 1.6;
-    ctx.strokeStyle = overdriveActive ? overdriveCol : 'rgba(53,240,255,0.4)';
-    ctx.stroke();
-
-    // Angular reinforced bevel lines on wings
-    ctx.beginPath();
-    ctx.moveTo(-vr*0.15, -vr*0.65);
-    ctx.lineTo(-vr*0.55, -vr*0.98);
-    ctx.moveTo(-vr*0.15, vr*0.65);
-    ctx.lineTo(-vr*0.55, vr*0.98);
-    ctx.strokeStyle = 'rgba(53, 240, 255, 0.28)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-  }
-
   /* === Sleek Aerodynamic Fighter Hull === */
   var hull = (p.inv > 0 && Math.floor(t*28) % 2) ? '#ffffff'
            : (p.flash > 0 ? '#ff9aa8' : (overdriveActive ? overdriveCol : '#35f0ff'));
 
-  // Dual Supersonic Ram-Air Intake Channels & Heatsink Grilles
-  for (var intakeSide = -1; intakeSide <= 1; intakeSide += 2){
-    var inY = intakeSide * vr * 0.36;
-    ctx.beginPath();
-    ctx.moveTo(vr * 0.35, inY - intakeSide * vr * 0.04);
-    ctx.lineTo(-vr * 0.30, inY - intakeSide * vr * 0.08);
-    ctx.lineTo(-vr * 0.35, inY);
-    ctx.lineTo(vr * 0.20, inY);
-    ctx.closePath();
-    ctx.fillStyle = '#04070d';
-    ctx.fill();
-    ctx.strokeStyle = overdriveActive ? overdriveCol : 'rgba(53, 240, 255, 0.45)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    // Glowing heatsink cooling fins
-    ctx.beginPath();
-    ctx.moveTo(-vr * 0.10, inY - intakeSide * vr * 0.04);
-    ctx.lineTo(-vr * 0.10, inY);
-    ctx.moveTo(-vr * 0.22, inY - intakeSide * vr * 0.05);
-    ctx.lineTo(-vr * 0.22, inY);
-    ctx.strokeStyle = overdriveActive ? overdriveCol : 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-
-  // Dynamic Steering Elevons / Winglet Ailerons that articulate with bank & lean
-  var steerDeflect = clamp((p.vx * Math.sin(p.aim) - p.vy * Math.cos(p.aim)) / (p.speed || 255), -1, 1);
-  for (var elSide = -1; elSide <= 1; elSide += 2){
-    ctx.save();
-    ctx.translate(-vr * 0.72, elSide * vr * 0.88);
-    ctx.rotate(elSide * steerDeflect * 0.25);
-    ctx.fillStyle = '#0e1626';
-    ctx.fillRect(-vr * 0.12, -vr * 0.05, vr * 0.24, vr * 0.10);
-    ctx.strokeStyle = hull;
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(-vr * 0.12, -vr * 0.05, vr * 0.24, vr * 0.10);
-    ctx.restore();
-  }
-
+  // Main delta-wing interceptor chassis
   ctx.beginPath();
   ctx.moveTo(vr*1.45, 0);
   ctx.lineTo(-vr*0.2, -vr*0.62);
@@ -7779,21 +7646,33 @@ function drawPlayer(){
   ctx.closePath();
   ctx.fillStyle = 'rgba(6,10,18,0.85)';
   ctx.fill();
-  ctx.lineWidth = 2.2; ctx.strokeStyle = hull; ctx.stroke();
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = hull;
+  ctx.stroke();
 
-  // Internal hull panel lines
+  // Internal cyber panel lines
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(vr*0.7, 0); ctx.lineTo(-vr*0.35, -vr*0.45);
-  ctx.moveTo(vr*0.7, 0); ctx.lineTo(-vr*0.35, vr*0.45);
+  ctx.moveTo(vr*0.75, 0); ctx.lineTo(-vr*0.35, -vr*0.45);
+  ctx.moveTo(vr*0.75, 0); ctx.lineTo(-vr*0.35, vr*0.45);
   if (overdriveActive){
     ctx.strokeStyle = overdriveCol;
-    ctx.globalAlpha = 0.65;
+    ctx.globalAlpha = 0.8;
   } else {
-    ctx.strokeStyle = 'rgba(53,240,255,0.35)';
+    ctx.strokeStyle = 'rgba(53,240,255,0.4)';
   }
   ctx.lineWidth = 1.2;
   ctx.stroke();
+
+  // Plating / armored reinforcement seams (visible when maxhp > 120)
+  if (p.maxhp > 120){
+    ctx.beginPath();
+    ctx.moveTo(vr*0.4, 0); ctx.lineTo(-vr*0.55, -vr*0.7);
+    ctx.moveTo(vr*0.4, 0); ctx.lineTo(-vr*0.55, vr*0.7);
+    ctx.strokeStyle = 'rgba(53, 240, 255, 0.45)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
   ctx.restore();
 
   /* === HARDWARE SOCKETS: EQUIPPED SKILL [Q] (Twin Wing Mounts) === */
@@ -7804,7 +7683,6 @@ function drawPlayer(){
       ctx.save();
       ctx.translate(-vr*0.45, side * vr*0.78);
       if (qsk.id === 'missiles'){
-        // Twin rectangular rocket pods with exposed orange warheads
         ctx.fillStyle = '#0a0e1a';
         ctx.strokeStyle = qsk.col;
         ctx.lineWidth = 1.4;
@@ -7812,21 +7690,17 @@ function drawPlayer(){
         ctx.strokeRect(-vr*0.14, -vr*0.10, vr*0.28, vr*0.08);
         ctx.fillRect(-vr*0.14, vr*0.02, vr*0.28, vr*0.08);
         ctx.strokeRect(-vr*0.14, vr*0.02, vr*0.28, vr*0.08);
-        // Warhead tips
         ctx.fillStyle = qsk.col;
         ctx.beginPath(); ctx.arc(vr*0.14, -vr*0.06, vr*0.03, 0, TAU); ctx.fill();
         ctx.beginPath(); ctx.arc(vr*0.14, vr*0.06, vr*0.03, 0, TAU); ctx.fill();
       } else if (qsk.id === 'tesla'){
-        // Dual cathode induction coils
         ctx.strokeStyle = qsk.col;
         ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.arc(-vr*0.06, 0, vr*0.09, 0, TAU); ctx.stroke();
         ctx.beginPath(); ctx.arc(vr*0.06, 0, vr*0.09, 0, TAU); ctx.stroke();
-        // Electric node
         ctx.fillStyle = '#ffffff';
         ctx.beginPath(); ctx.arc(0, 0, vr*0.04, 0, TAU); ctx.fill();
       } else if (qsk.id === 'laser'){
-        // Linear accelerator rail barrel
         ctx.strokeStyle = qsk.col;
         ctx.lineWidth = 1.6;
         ctx.beginPath();
@@ -7838,7 +7712,6 @@ function drawPlayer(){
         ctx.fillStyle = qsk.col;
         ctx.beginPath(); ctx.arc(vr*0.18, 0, vr*0.03, 0, TAU); ctx.fill();
       } else {
-        // Hexagonal emitter hub
         ctx.beginPath();
         for (var qhi = 0; qhi < 6; qhi++){
           var qa = qhi * (TAU / 6);
@@ -7859,51 +7732,15 @@ function drawPlayer(){
     }
   }
 
-  /* === Wingtip Navigation Strobe Beacons === */
-  ctx.fillStyle = '#ff4d6d';
-  ctx.fillRect(-vr*0.75, -vr*0.95, 2.5, 2.5);
-  ctx.fillStyle = '#3ddc97';
-  ctx.fillRect(-vr*0.75, vr*0.95, 2.5, 2.5);
-
-  /* === Crystalline Canopy & Specular Core === */
-  var cockpitAlpha = overdriveActive ? (0.7 + Math.sin(t * 24) * 0.3) : 1.0;
-  ctx.globalAlpha = cockpitAlpha;
+  /* === Crystalline Cockpit Canopy === */
   ctx.beginPath();
-  ctx.moveTo(vr*0.8, 0);
+  ctx.moveTo(vr*0.75, 0);
   ctx.lineTo(vr*0.05, -vr*0.26);
-  ctx.lineTo(-vr*0.1, 0);
+  ctx.lineTo(-vr*0.08, 0);
   ctx.lineTo(vr*0.05, vr*0.26);
   ctx.closePath();
   ctx.fillStyle = overdriveActive ? overdriveCol : '#eafeff';
   ctx.fill();
-
-  // Internal Holographic Pilot HUD Reticle
-  ctx.save();
-  ctx.strokeStyle = overdriveActive ? '#ffffff' : 'rgba(53, 240, 255, 0.75)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(vr * 0.38, -vr * 0.08); ctx.lineTo(vr * 0.38, vr * 0.08);
-  ctx.moveTo(vr * 0.30, 0); ctx.lineTo(vr * 0.46, 0);
-  ctx.stroke();
-  // Artificial horizon line that tilts with steering lean
-  ctx.beginPath();
-  ctx.moveTo(vr * 0.22, -vr * 0.06 * lean);
-  ctx.lineTo(vr * 0.54, vr * 0.06 * lean);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-  ctx.stroke();
-  ctx.restore();
-
-  // Specular reflection sweep glint across polarized glass
-  var glintX = vr * (0.28 + Math.sin(t * 2.5) * 0.12);
-  ctx.beginPath();
-  ctx.arc(glintX, -vr * 0.05, vr * 0.035, 0, TAU);
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(vr*0.28, 0, vr*0.12, 0, TAU);
-  ctx.fillStyle = '#ffffff'; ctx.fill();
-  ctx.globalAlpha = 1;
 
   ctx.restore();
 
@@ -7931,20 +7768,6 @@ function drawPlayer(){
       ctx.fillRect(p.x + Math.cos(ga) * r * 2.1 - 2, p.y + Math.sin(ga) * r * 2.1 - 2, 4, 4);
     }
     ctx.restore();
-  }
-
-  /* dash ready ring */
-  if (p.dashT > 0){
-    var frac = 1 - p.dashT / p.dashCd;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r*2.4, -Math.PI/2, -Math.PI/2 + TAU*frac);
-    ctx.strokeStyle = 'rgba(53,240,255,0.35)';
-    ctx.lineWidth = 2; ctx.stroke();
-  } else {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r*2.4, 0, TAU);
-    ctx.strokeStyle = 'rgba(53,240,255,0.16)';
-    ctx.lineWidth = 1; ctx.stroke();
   }
 }
 
@@ -8779,20 +8602,16 @@ function render(){
     }
   }
 
-  /* laser sight aim line & aim assist lock indicator */
-  var arrowHeld = (keys['arrowleft'] || keys['arrowright'] || keys['arrowup'] || keys['arrowdown']);
-  var mouseAimActive = (mouse.active && (mouse.movedRecent > 0 || mouse.down));
+  /* Laser sight aim line & tactical aim assist lock indicator */
+  var isFiring = G.playerFiring || (mouse && mouse.down) || (touch && touch.active);
   var tgt = G.aimAssistTarget;
 
-  if (tgt){
-    ctx.beginPath();
-    ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
-    ctx.lineTo(tgt.x, tgt.y);
-    ctx.strokeStyle = 'rgba(53,240,255,0.40)'; ctx.lineWidth = 1.6; ctx.stroke();
-
+  if (tgt && (isFiring || (mouse && mouse.active))){
     // Lock-on crosshair target ring on tracked hostile
     ctx.beginPath(); ctx.arc(tgt.x, tgt.y, tgt.r + 8, 0, TAU);
-    ctx.strokeStyle = 'rgba(53,240,255,0.60)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = isFiring ? 'rgba(53,240,255,0.85)' : 'rgba(53,240,255,0.45)';
+    ctx.lineWidth = isFiring ? 1.8 : 1.2;
+    ctx.stroke();
     for (var lk = 0; lk < 4; lk++){
       var la = lk * (TAU/4) + G.t * 3;
       ctx.beginPath();
@@ -8800,17 +8619,17 @@ function render(){
       ctx.lineTo(tgt.x + Math.cos(la)*(tgt.r+13), tgt.y + Math.sin(la)*(tgt.r+13));
       ctx.stroke();
     }
-  } else if (arrowHeld || mouseAimActive || touch.active){
+    if (isFiring){
+      ctx.beginPath();
+      ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
+      ctx.lineTo(tgt.x, tgt.y);
+      ctx.strokeStyle = 'rgba(53,240,255,0.45)'; ctx.lineWidth = 1.6; ctx.stroke();
+    }
+  } else if (isFiring){
     ctx.beginPath();
     ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
     ctx.lineTo(p.x + Math.cos(p.aim)*450, p.y + Math.sin(p.aim)*450);
-    ctx.strokeStyle = 'rgba(53,240,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
-  } else {
-    // Subtle short heading indicator ahead of ship
-    ctx.beginPath();
-    ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.5, p.y + Math.sin(p.aim)*p.r*1.5);
-    ctx.lineTo(p.x + Math.cos(p.aim)*(p.r*1.5 + 40), p.y + Math.sin(p.aim)*(p.r*1.5 + 40));
-    ctx.strokeStyle = 'rgba(53,240,255,0.14)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = 'rgba(53,240,255,0.30)'; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
   drawPlayer();
@@ -10588,7 +10407,7 @@ function drawPause(){
   ctx.font = '11px ui-monospace,monospace';
   ctx.fillStyle = '#678195';
   var hintY = cy0 + (G.godModeUnlocked ? 392 : 362);
-  ctx.fillText('CONTROLS: [WASD] Move  •  [ARROWS] Aim  •  [SPACE] Dash  •  [Q] Skill  •  [P] Pause  •  [H] Home', W / 2, hintY);
+  ctx.fillText('CONTROLS: [WASD / ARROWS] Move  •  [LEFT CLICK] Fire  •  [SPACE] Dash  •  [Q] Skill  •  [P] Pause  •  [H] Home', W / 2, hintY);
 
   ctx.restore();
 }
@@ -11874,7 +11693,7 @@ function drawTitle(){
 
   ctx.fillStyle = '#35f0ff';
   ctx.font = 'bold 15px ui-monospace,monospace';
-  ctx.fillText('[WASD] MOVE   •   [MOUSE / ARROWS] AIM & FIRE   •   [SPACE] DASH   •   [Q] SKILL   •   [P] PAUSE', W/2, H*0.63);
+  ctx.fillText('[WASD / ARROWS] MOVE   •   [LEFT CLICK] FIRE   •   [SPACE] DASH   •   [Q] SKILL   •   [P] PAUSE', W/2, H*0.63);
 
   ctx.fillStyle = '#7de8ff';
   ctx.font = '11px ui-monospace,monospace';
