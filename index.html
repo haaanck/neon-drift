@@ -291,6 +291,9 @@ function angLerp(a, b, t){
   var d = ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
   return a + d * t;
 }
+function angDist(a, b){
+  return ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+}
 function distToSegment(px, py, x1, y1, x2, y2){
   var l2 = (x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1);
   if (l2 === 0) return Math.hypot(px - x1, py - y1);
@@ -1754,7 +1757,7 @@ var UPGRADES = [
   { name:'BLINK',            icon:'dash',      desc:'dash cd -40%, +invulnerability',  apply:function(p){ p.dashCd *= 0.60; p.invDur = (p.invDur || 0.28) + 0.16; } },
   { name:'DUAL',             icon:'twin',      desc:'+35% fire rate, +15% damage',      apply:function(p){ p.fireRate *= 1.35; p.damage *= 1.15; } },
   { name:'AEGIS',            icon:'hex',       desc:'+45 max HP, +1.6 regen, +10% armor',apply:function(p){ p.maxhp += 45; p.hp = Math.min(p.maxhp, p.hp + 45); p.regen += 1.6; p.resist = (p.resist || 1) * 0.90; } },
-  { name:'AUTOLOCK',         icon:'crosshair', desc:'AI auto-locks hostiles, +20% fire',apply:function(p){ p.autoAim = true; p.fireRate *= 1.20; } },
+  { name:'FOCUS',            icon:'crosshair', desc:'+45% aim assist lock & +20% fire rate',apply:function(p){ p.aimAssistBonus = (p.aimAssistBonus || 0) + 0.45; p.fireRate *= 1.20; } },
   { name:'SLAYER',           icon:'skull',     desc:'+55% damage vs Bosses & Heavies',  apply:function(p){ p.bossDamageMult = (p.bossDamageMult || 1) * 1.55; p.crit += 0.10; } },
   { name:'SHIELD',           icon:'shield',    desc:'+50 HP regenerating energy barrier',apply:function(p){ p.maxShield = (p.maxShield || 0) + 50; p.shield = (p.shield || 0) + 50; } },
   { name:'OVERCLOCK',        icon:'bolt',      desc:'skill cd -35%, +25% active duration',apply:function(p){ p.skillCdMult = (p.skillCdMult || 1) * 0.65; if (p.skills && p.skills.q) p.skills.q.maxCd *= 0.65; } }
@@ -1779,19 +1782,11 @@ function saveHighScore(){
   } catch(e){}
 }
 
-var savedAutoAim = false;
-try {
-  savedAutoAim = (localStorage.getItem('neon_drift_auto_aim') === '1');
-} catch(e){}
-
+var savedAutoAim = true;
 function toggleAutoAimConfig(){
   if (!G) return;
-  G.configAutoAim = !G.configAutoAim;
-  savedAutoAim = G.configAutoAim;
-  if (G.player) G.player.autoAim = G.configAutoAim;
-  try {
-    localStorage.setItem('neon_drift_auto_aim', G.configAutoAim ? '1' : '0');
-  } catch(e){}
+  G.aimAssist = true;
+  if (G.player) G.player.aimAssist = true;
   sound.choose();
 }
 
@@ -1878,7 +1873,6 @@ function closeGodMode(){
 }
 
 function newGame(){
-  var autoAimSetting = (G && G.configAutoAim !== undefined) ? G.configAutoAim : savedAutoAim;
   var wasGodUnlocked = (G && G.godModeUnlocked) || false;
   var keepGodOverrides = (G && G.godModeOverrides) ? G.godModeOverrides : null;
   var wasGodActive = (G && G.godModeActive) || false;
@@ -1889,7 +1883,10 @@ function newGame(){
     enemies:[], bullets:[], ebullets:[], orbs:[], parts:[], texts:[], cards:[],
     waves:[], decals:[], ghosts:[], dust:[],
     kills:0,
-    configAutoAim: autoAimSetting,
+    aimAssist: true,
+    aimAssistTarget: null,
+    playerFiring: false,
+    configAutoAim: true,
     titleAutoAimRect: null,
     godModeUnlocked: wasGodUnlocked,
     godModeOverrides: keepGodOverrides,
@@ -1921,7 +1918,9 @@ function newGame(){
       dashCd:1.4, dashT:0, dashActiveT:0, dashDirX:0, dashDirY:0, dashGhostTimer:0,
       fireT:0, inv:0, invDur:0.28, flash:0, squash:0, hitAng:0,
       lvl:1, xp:0, xpNext:5,
-      autoAim: autoAimSetting,
+      autoAim: true,
+      aimAssist: true,
+      aimAssistBonus: 0,
       godMode: false,
       skills: {
         q: { skill: null, cd: 0, maxCd: 10, activeT: 0 }
@@ -1954,15 +1953,14 @@ newGame();
 function startGame(overrideWave){
   keys = {};
   touch.active = false;
-  var keepAutoAim = (G && G.configAutoAim !== undefined) ? G.configAutoAim : savedAutoAim;
   var wasGodUnlocked = (G && G.godModeUnlocked) || false;
   var keepGodOverrides = (G && G.godModeOverrides) ? G.godModeOverrides : null;
   var wasGodActive = (G && G.godModeActive) || false;
   var targetWave = overrideWave || (keepGodOverrides && keepGodOverrides.targetWave) || 1;
 
   newGame();
-  G.configAutoAim = keepAutoAim;
-  G.player.autoAim = keepAutoAim;
+  G.aimAssist = true;
+  G.player.aimAssist = true;
   G.godModeUnlocked = wasGodUnlocked;
   G.godModeActive = wasGodActive;
   G.godModeOverrides = keepGodOverrides;
@@ -2191,7 +2189,6 @@ window.addEventListener('keydown', function(e){
     }
   }
   else if (G.state === 'title'){
-    if (k === 't'){ toggleAutoAimConfig(); return; }
     if (k === 'x'){ enterTrainingRoom(); return; }
     if (k === ' ' || k === 'enter' || k.startsWith('arrow')) startGame();
   }
@@ -2301,13 +2298,6 @@ function handleUiClick(cx, cy){
       }
     }
 
-    if (G.titleAutoAimRect){
-      var tr = G.titleAutoAimRect;
-      if (cx >= tr.x && cx <= tr.x + tr.w && cy >= tr.y && cy <= tr.y + tr.h){
-        toggleAutoAimConfig();
-        return true;
-      }
-    }
     if (G.titleTrainingRect){
       var ttr = G.titleTrainingRect;
       if (cx >= ttr.x && cx <= ttr.x + ttr.w && cy >= ttr.y && cy <= ttr.y + ttr.h){
@@ -2451,14 +2441,26 @@ cvs.addEventListener('touchmove', function(e){
 }, {passive:false});
 cvs.addEventListener('touchend', function(e){ e.preventDefault(); touch.active = false; }, {passive:false});
 
-var mouse = { x: 0, y: 0, active: false };
+var mouse = { x: 0, y: 0, active: false, down: false, movedRecent: 0 };
 window.addEventListener('mousemove', function(e){
   mouse.x = e.clientX;
   mouse.y = e.clientY;
   mouse.active = true;
+  mouse.movedRecent = 2.0;
 });
 window.addEventListener('mousedown', function(e){
   actx();
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  mouse.active = true;
+  mouse.down = true;
+  mouse.movedRecent = 2.0;
+});
+window.addEventListener('mouseup', function(e){
+  mouse.down = false;
+});
+window.addEventListener('mouseleave', function(e){
+  mouse.down = false;
 });
 
 cvs.addEventListener('click', function(e){
@@ -2546,10 +2548,7 @@ function addXP(v){
 }
 function openLevelUp(){
   var p = G.player;
-  var buffPool = UPGRADES.filter(function(u){
-    if ((u.name === 'AUTOLOCK' || u.name === 'TARGETING MATRIX') && p.autoAim) return false;
-    return true;
-  }).map(function(u){
+  var buffPool = UPGRADES.map(function(u){
     return {
       name: u.name,
       icon: u.icon,
@@ -4461,7 +4460,7 @@ function update(dt){
 
       // Twin mirror shooting
       dc.fireT = (dc.fireT || 0) - dt;
-      if (dc.fireT <= 0 && ((keys && (keys['arrowleft'] || keys['arrowright'] || keys['arrowup'] || keys['arrowdown'])) || p.autoAim)){
+      if (dc.fireT <= 0 && G.playerFiring){
         dc.fireT = 0.28;
         G.bullets.push({
           x: dc.x + Math.cos(dc.aim) * 12,
@@ -4739,7 +4738,11 @@ function update(dt){
   G.camX += ((p.x + p.vx*0.12) - G.camX) * Math.min(1, dt*7);
   G.camY += ((p.y + p.vy*0.12) - G.camY) * Math.min(1, dt*7);
 
-  /* aim & shoot controls */
+  if (mouse && mouse.movedRecent > 0) {
+    mouse.movedRecent = Math.max(0, mouse.movedRecent - dt);
+  }
+
+  /* Manual Aim with Smooth Aim Assist */
   var sx = 0, sy = 0;
   if (keys['arrowleft'])  sx--;
   if (keys['arrowright']) sx++;
@@ -4747,46 +4750,91 @@ function update(dt){
   if (keys['arrowdown'])  sy++;
   var isArrowAim = (sx !== 0 || sy !== 0);
 
-  var shouldFire = false;
-  var fireAngle = p.aim;
+  // 1. Determine raw manual intention angle
+  var rawManualAim = p.aim;
+  var hasManualInput = false;
 
   if (isArrowAim) {
-    // 1. Manual Arrow keys aim & continuous fire
-    var arrowAngle = Math.atan2(sy, sx);
-    p.aim = angLerp(p.aim, arrowAngle, Math.min(1, dt * 28));
-    fireAngle = arrowAngle;
-    shouldFire = true;
+    rawManualAim = Math.atan2(sy, sx);
+    hasManualInput = true;
   } else if (touch.active) {
-    // 2. Touchscreen aim & continuous fire when dragging/aiming
     var tdx = touch.x - p.x, tdy = touch.y - p.y;
     if (Math.hypot(tdx, tdy) > 18){
-      var touchAngle = Math.atan2(tdy, tdx);
-      p.aim = angLerp(p.aim, touchAngle, Math.min(1, dt * 28));
-      fireAngle = touchAngle;
-      shouldFire = true;
+      rawManualAim = Math.atan2(tdy, tdx);
+      hasManualInput = true;
     }
-  } else if (p.autoAim) {
-    // 3. Auto-Aim Power-Up: automatically locks & fires at nearest hostiles
-    var aimTarget = nearestEnemy(p.x, p.y, 750);
-    if (aimTarget) {
-      var targetAngle = Math.atan2(aimTarget.y - p.y, aimTarget.x - p.x);
-      p.aim = angLerp(p.aim, targetAngle, Math.min(1, dt * 20));
-      fireAngle = targetAngle;
-      shouldFire = true;
-    } else {
-      if (Math.hypot(p.vx, p.vy) > 20) {
-        p.aim = angLerp(p.aim, Math.atan2(p.vy, p.vx), Math.min(1, dt * 8));
-      }
-      shouldFire = false;
+  } else if (mouse.active && (mouse.movedRecent > 0 || mouse.down)) {
+    var mWorldX = G.camX + (mouse.x - W/2) / ZOOM;
+    var mWorldY = G.camY + (mouse.y - H/2) / ZOOM;
+    var mdx = mWorldX - p.x, mdy = mWorldY - p.y;
+    if (Math.hypot(mdx, mdy) > 20){
+      rawManualAim = Math.atan2(mdy, mdx);
+      hasManualInput = true;
     }
-  } else {
-    // 4. Manual Aim Mode (Pure Keyboard - mouse disconnected):
-    // Faces movement direction if maneuvering, otherwise holds heading. Does NOT auto-fire!
-    if (Math.hypot(p.vx, p.vy) > 20) {
-      p.aim = angLerp(p.aim, Math.atan2(p.vy, p.vx), Math.min(1, dt * 10));
-    }
-    shouldFire = false;
+  } else if (Math.hypot(p.vx, p.vy) > 25) {
+    // Maneuvering without explicit aiming input: ship heads toward movement vector
+    rawManualAim = Math.atan2(p.vy, p.vx);
   }
+
+  // 2. Aim Assist: Forward tactical cone hostile search
+  var assistCone = 0.54 * (1 + (p.aimAssistBonus || 0)); // ~31-45 degrees cone
+  var maxAssistRange = 750;
+  var bestTarget = null;
+  var bestScore = -1;
+
+  for (var ei = 0; ei < G.enemies.length; ei++){
+    var e = G.enemies[ei];
+    if (e.hp <= 0) continue;
+    var edx = e.x - p.x;
+    var edy = e.y - p.y;
+    var edist = Math.hypot(edx, edy);
+    if (edist <= maxAssistRange && edist > 0){
+      var eang = Math.atan2(edy, edx);
+      var dAng = Math.abs(angDist(rawManualAim, eang));
+      if (dAng <= assistCone){
+        var angScore = 1 - (dAng / assistCone);
+        var distScore = 1 - (edist / maxAssistRange);
+        var score = angScore * 0.70 + distScore * 0.30;
+        if (e.isBoss) score *= 1.45;
+        if (score > bestScore){
+          bestScore = score;
+          bestTarget = e;
+        }
+      }
+    }
+  }
+
+  G.aimAssistTarget = bestTarget;
+
+  // 3. Magnetic target pull with predictive velocity lead
+  var desiredAim = rawManualAim;
+  if (bestTarget){
+    var bSpeed = 660;
+    var tLead = Math.min(0.8, Math.hypot(bestTarget.x - p.x, bestTarget.y - p.y) / bSpeed);
+    var predX = bestTarget.x + (bestTarget.vx || 0) * tLead * 0.7;
+    var predY = bestTarget.y + (bestTarget.vy || 0) * tLead * 0.7;
+    var leadAngle = Math.atan2(predY - p.y, predX - p.x);
+
+    var angToLead = angDist(rawManualAim, leadAngle);
+    var pullFactor = Math.pow(Math.max(0, 1 - Math.abs(angToLead) / assistCone), 1.2) * 0.75;
+    if (p.aimAssistBonus) pullFactor = Math.min(0.92, pullFactor * (1 + p.aimAssistBonus));
+    desiredAim = rawManualAim + angToLead * pullFactor;
+  }
+
+  // 4. Smooth rotational interpolation
+  var turnSpeed = (hasManualInput || bestTarget) ? 26 : 10;
+  p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * turnSpeed));
+  var fireAngle = p.aim;
+
+  // 5. Smooth fire command
+  var shouldFire = false;
+  if (bestTarget !== null) {
+    shouldFire = true;
+  } else if (hasManualInput && (mouse.down || isArrowAim || touch.active || keys[' '])) {
+    shouldFire = true;
+  }
+
+  G.playerFiring = shouldFire;
 
   p.fireT -= dt;
   if (p.fireT <= 0 && shouldFire){
@@ -8731,30 +8779,32 @@ function render(){
     }
   }
 
-  /* laser sight aim line (Pure Keyboard / Directional) */
+  /* laser sight aim line & aim assist lock indicator */
   var arrowHeld = (keys['arrowleft'] || keys['arrowright'] || keys['arrowup'] || keys['arrowdown']);
-  var tgt = p.autoAim ? nearestEnemy(p.x, p.y, 750) : null;
-  if (arrowHeld){
-    ctx.beginPath();
-    ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
-    ctx.lineTo(p.x + Math.cos(p.aim)*450, p.y + Math.sin(p.aim)*450);
-    ctx.strokeStyle = 'rgba(53,240,255,0.32)'; ctx.lineWidth = 1.8; ctx.stroke();
-  } else if (p.autoAim && tgt){
+  var mouseAimActive = (mouse.active && (mouse.movedRecent > 0 || mouse.down));
+  var tgt = G.aimAssistTarget;
+
+  if (tgt){
     ctx.beginPath();
     ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
     ctx.lineTo(tgt.x, tgt.y);
-    ctx.strokeStyle = 'rgba(53,240,255,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(53,240,255,0.40)'; ctx.lineWidth = 1.6; ctx.stroke();
 
     // Lock-on crosshair target ring on tracked hostile
     ctx.beginPath(); ctx.arc(tgt.x, tgt.y, tgt.r + 8, 0, TAU);
-    ctx.strokeStyle = 'rgba(53,240,255,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(53,240,255,0.60)'; ctx.lineWidth = 1.5; ctx.stroke();
     for (var lk = 0; lk < 4; lk++){
       var la = lk * (TAU/4) + G.t * 3;
       ctx.beginPath();
       ctx.moveTo(tgt.x + Math.cos(la)*(tgt.r+5), tgt.y + Math.sin(la)*(tgt.r+5));
-      ctx.lineTo(tgt.x + Math.cos(la)*(tgt.r+12), tgt.y + Math.sin(la)*(tgt.r+12));
+      ctx.lineTo(tgt.x + Math.cos(la)*(tgt.r+13), tgt.y + Math.sin(la)*(tgt.r+13));
       ctx.stroke();
     }
+  } else if (arrowHeld || mouseAimActive || touch.active){
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
+    ctx.lineTo(p.x + Math.cos(p.aim)*450, p.y + Math.sin(p.aim)*450);
+    ctx.strokeStyle = 'rgba(53,240,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
   } else {
     // Subtle short heading indicator ahead of ship
     ctx.beginPath();
@@ -10216,9 +10266,9 @@ function drawHUD(){
     ctx.fillText('[SHIELD ' + Math.ceil(p.shield) + ']', xOffset, 78);
     xOffset += 92;
   }
-  drawIcon(p.autoAim ? 'reticle' : 'manual_aim', xOffset + 6, 74, 11, p.autoAim ? '#35f0ff' : '#657e92');
-  ctx.fillStyle = p.autoAim ? '#35f0ff' : '#657e92';
-  ctx.fillText(p.autoAim ? 'AUTO' : 'MANUAL', xOffset + 16, 78);
+  drawIcon('reticle', xOffset + 6, 74, 11, '#35f0ff');
+  ctx.fillStyle = '#35f0ff';
+  ctx.fillText('AIM ASSIST', xOffset + 16, 78);
 
   // Top-Right Control Bar (Pause & Debug)
   var pbW = 34, pbH = 28;
@@ -10407,7 +10457,7 @@ function drawPause(){
   drawStat('crosshair', col1, statY + 26, 'HOSTILES PURGED', '' + G.kills, '#35f0ff');
   drawStat('flame',   col2, statY + 26, 'COMBAT STREAK', 'x' + G.streak + ' (MAX x' + G.best + ')', '#ffe066');
   drawStat('heart',   col1, statY + 52, 'HULL INTEGRITY', 'LV ' + p.lvl + ' (' + Math.ceil(p.hp) + '/' + p.maxhp + ' HP)', '#3ddc97');
-  drawStat(p.autoAim ? 'reticle' : 'manual_aim', col2, statY + 52, 'TARGET SYSTEM', p.autoAim ? 'AUTO-LOCK' : 'MANUAL AIM', p.autoAim ? '#35f0ff' : '#829bb0');
+  drawStat('reticle', col2, statY + 52, 'TARGET SYSTEM', 'SMOOTH AIM ASSIST', '#35f0ff');
   drawStat(qSk ? qSk.icon : 'lock', col1, statY + 78, 'SLOT [Q]', qName, qSk ? qSk.col : '#829bb0');
   drawStat('chip', col2, statY + 78, 'PASSIVE MATRIX', '' + totalUpgrades + ' INSTALLED', '#35f0ff');
 
@@ -11419,12 +11469,15 @@ function drawGodModeModal(){
   });
 
   // 5. Targeting Mode Toggle
-  godBtn(mx + 658, rowY, 145, 28, G.configAutoAim ? 'AIM: AUTO-LOCK' : 'AIM: MANUAL', function(){
-    toggleAutoAimConfig();
+  godBtn(mx + 658, rowY, 145, 28, 'AIM: ASSISTED', function(){
+    if (G.player) {
+      G.player.aimAssistBonus = (G.player.aimAssistBonus ? 0 : 0.5);
+      sound.choose();
+    }
   }, {
-    border: G.configAutoAim ? '#00f5d4' : '#ff9f1c',
-    txtCol: G.configAutoAim ? '#00f5d4' : '#ff9f1c',
-    bg: G.configAutoAim ? 'rgba(0,245,212,0.15)' : 'rgba(255,159,28,0.15)'
+    border: '#00f5d4',
+    txtCol: '#00f5d4',
+    bg: 'rgba(0,245,212,0.15)'
   });
 
   // Two columns divider
@@ -11821,45 +11874,19 @@ function drawTitle(){
 
   ctx.fillStyle = '#35f0ff';
   ctx.font = 'bold 15px ui-monospace,monospace';
-  ctx.fillText('[WASD] MOVE   •   [ARROWS] AIM & SHOOT   •   [SPACE] DASH   •   [Q] SKILL   •   [P] PAUSE', W/2, H*0.64);
+  ctx.fillText('[WASD] MOVE   •   [MOUSE / ARROWS] AIM & FIRE   •   [SPACE] DASH   •   [Q] SKILL   •   [P] PAUSE', W/2, H*0.63);
 
-  // Auto-Aim Interactive Mode Toggle Button
-  var btnW = 380, btnH = 46;
-  var btnX = (W - btnW) / 2, btnY = H * 0.69;
-  G.titleAutoAimRect = { x: btnX, y: btnY, w: btnW, h: btnH };
-  var isHoverAim = mouse.active && mouse.x >= btnX && mouse.x <= btnX + btnW && mouse.y >= btnY && mouse.y <= btnY + btnH;
-
-  ctx.save();
-  var isAimOn = G.configAutoAim;
-  var aimCol = isAimOn ? '#00f5d4' : '#ff9f1c';
-  var aimBg = isAimOn ? (isHoverAim ? 'rgba(0, 245, 212, 0.28)' : 'rgba(0, 245, 212, 0.12)')
-                      : (isHoverAim ? 'rgba(255, 159, 28, 0.28)' : 'rgba(255, 159, 28, 0.12)');
-  ctx.fillStyle = aimBg;
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(btnX, btnY, btnW, btnH, 8);
-  else ctx.rect(btnX, btnY, btnW, btnH);
-  ctx.fill();
-  ctx.strokeStyle = isHoverAim ? '#ffffff' : aimCol;
-  ctx.lineWidth = isHoverAim ? 2.5 : 1.5;
-  ctx.stroke();
-
-  drawIcon(isAimOn ? 'reticle' : 'manual_aim', btnX + 44, btnY + 22, 16, isHoverAim ? '#ffffff' : aimCol);
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 14px ui-monospace,monospace';
-  ctx.fillStyle = isHoverAim ? '#ffffff' : aimCol;
-  var labelText = isAimOn ? 'TARGETING: AUTO-LOCK' : 'TARGETING: MANUAL AIM';
-  ctx.fillText(labelText, btnX + btnW / 2 + 10, btnY + 22);
-
+  ctx.fillStyle = '#7de8ff';
   ctx.font = '11px ui-monospace,monospace';
-  ctx.fillStyle = isHoverAim ? '#ffffff' : '#829bb0';
-  ctx.fillText('CLICK BUTTON OR PRESS [T] TO TOGGLE', btnX + btnW / 2, btnY + 36);
-  ctx.restore();
+  ctx.fillText('TACTICAL VECTOR AIM ASSIST ACTIVE', W/2, H*0.665);
+
+  G.titleAutoAimRect = null;
 
   // Mission Action Buttons: START MISSION [SPACE] & TRAINING ROOM [X]
   var actBtnW = Math.min(200, (W - 50) / 2);
   var actBtnH = 46;
   var actGap = 16;
-  var actY = H * 0.77;
+  var actY = H * 0.71;
 
   // 1. Start Mission Button
   var startX = W / 2 - actBtnW - actGap / 2;
