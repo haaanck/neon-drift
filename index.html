@@ -909,6 +909,21 @@ var AC = null;
 var masterFilter = null;
 var masterGain = null;
 
+var _sharedNoiseBuffer = null;
+function getSharedNoiseBuffer(a){
+  if (!_sharedNoiseBuffer && a && a.createBuffer){
+    try {
+      var len = Math.floor(1.0 * (a.sampleRate || 44100));
+      _sharedNoiseBuffer = a.createBuffer(1, len, a.sampleRate || 44100);
+      var d = _sharedNoiseBuffer.getChannelData(0);
+      for (var i = 0; i < len; i++){
+        d[i] = Math.random() * 2 - 1;
+      }
+    } catch(e){}
+  }
+  return _sharedNoiseBuffer;
+}
+
 function actx(){
   if (!AC){
     try {
@@ -1093,16 +1108,11 @@ var music = {
       g.connect(this._filter || a.destination);
       o.start(t); o.stop(t + 0.2);
 
-      // Soft cosmic noise wash
-      if (a.createBuffer){
+      // Soft cosmic noise wash (zero-allocation)
+      if (a.createBuffer && getSharedNoiseBuffer(a)){
         var dur = 0.14;
-        var buf = a.createBuffer(1, Math.floor(dur * (a.sampleRate || 44100)), a.sampleRate || 44100);
-        var data = buf.getChannelData(0);
-        for (var i = 0; i < data.length; i++){
-          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.4));
-        }
         var src = a.createBufferSource();
-        src.buffer = buf;
+        src.buffer = getSharedNoiseBuffer(a);
         var nf = a.createBiquadFilter();
         nf.type = 'bandpass';
         nf.frequency.setValueAtTime(2200, t);
@@ -1122,14 +1132,9 @@ var music = {
       var isOpen = (s % 16 === 14);
       var dur = isOpen ? 0.09 : 0.026;
       var vol = (s % 4 === 2) ? 0.045 : (isOpen ? 0.065 : 0.025);
-      if (a.createBuffer){
-        var buf = a.createBuffer(1, Math.floor(dur * (a.sampleRate || 44100)), a.sampleRate || 44100);
-        var data = buf.getChannelData(0);
-        for (var i = 0; i < data.length; i++){
-          data[i] = (Math.random() * 2 - 1);
-        }
+      if (a.createBuffer && getSharedNoiseBuffer(a)){
         var src = a.createBufferSource();
-        src.buffer = buf;
+        src.buffer = getSharedNoiseBuffer(a);
         var f = a.createBiquadFilter();
         f.type = 'highpass';
         f.frequency.setValueAtTime(isOpen ? 8000 : 9500, t);
@@ -1367,14 +1372,9 @@ var sound = {
     var dur = 0.22;
 
     try {
-      if (a.createBuffer){
-        var buf = a.createBuffer(1, Math.floor(dur * (a.sampleRate || 44100)), a.sampleRate || 44100);
-        var data = buf.getChannelData(0);
-        for (var i = 0; i < data.length; i++){
-          data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-        }
+      if (a.createBuffer && getSharedNoiseBuffer(a)){
         var src = a.createBufferSource();
-        src.buffer = buf;
+        src.buffer = getSharedNoiseBuffer(a);
 
         var filt = a.createBiquadFilter();
         filt.type = 'bandpass';
@@ -2285,10 +2285,10 @@ function acquireSkillCore(skObj){
     var swapCards = [
       {
         u: {
-          name: 'EQUIP [Q]: ' + skObj.name,
+          name: skObj.name,
           icon: skObj.icon,
           isSkill: true,
-          desc: 'Replaces ' + (p.skills.q.skill ? p.skills.q.skill.name : 'Slot Q'),
+          desc: 'Equip ' + skObj.name + ' in Slot [Q] (replaces ' + (p.skills.q.skill ? p.skills.q.skill.name : 'Slot Q') + ')',
           apply: function(){ resolveSkillSwap('q'); }
         },
         i: 0, rect: null, born: 1
@@ -2850,9 +2850,25 @@ window.addEventListener('keydown', function(e){
     if (k === 'x'){ enterTrainingRoom(); return; }
     if (k === ' ' || k === 'enter' || k.startsWith('arrow')) startGame();
   }
-  else if (G.state === 'victory' && (k === 'r' || k === ' ' || k === 'enter')){
-    if ((G.victoryTimer || 0) < 2.5) G.victoryTimer = 2.6;
-    else startGame();
+  else if (G.state === 'victory'){
+    if (k === '1' || k === 'r' || k === ' ' || k === 'enter'){
+      if ((G.victoryTimer || 0) < 2.5){
+        G.victoryTimer = 2.6;
+        return;
+      }
+      startGame();
+      return;
+    } else if (k === '2' || k === 'e'){
+      G.state = 'play';
+      G.victoryDismissed = true;
+      if (G.player) G.player.inv = 3.5;
+      sound.choose();
+      return;
+    } else if (k === '3' || k === 'escape'){
+      G.state = 'title';
+      sound.choose();
+      return;
+    }
   }
   else if (G.state === 'dead' && (k === 'r' || k === ' ' || k === 'enter')) startGame();
   else if (G.state === 'levelup'){
@@ -2978,9 +2994,24 @@ function handleUiClick(cx, cy){
     return true;
   }
   if (G.state === 'victory'){
-    if ((G.victoryTimer || 0) < 2.5){
-      G.victoryTimer = 2.6;
-      return true;
+    if (G.victoryButtons && G.victoryButtons.length){
+      for (var vi = 0; vi < G.victoryButtons.length; vi++){
+        var vb = G.victoryButtons[vi];
+        var vr = vb.rect;
+        if (cx >= vr.x && cx <= vr.x + vr.w && cy >= vr.y && cy <= vr.y + vr.h){
+          if (vb.action === 'restart') startGame();
+          else if (vb.action === 'explore') {
+            G.state = 'play';
+            G.victoryDismissed = true;
+            if (G.player) G.player.inv = 3.5;
+            sound.choose();
+          } else if (vb.action === 'title') {
+            G.state = 'title';
+            sound.choose();
+          }
+          return true;
+        }
+      }
     }
     startGame();
     return true;
@@ -3153,7 +3184,7 @@ function burst(x, y, col, n, ang, spread){
     G.parts.push({ x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
       life:rnd(0.22,0.6), col:col, size:rnd(1.4,3.2), drag:0.06 });
   }
-  if (G.parts.length > 1100) G.parts.splice(0, G.parts.length - 1100);
+  if (G.parts.length > 450) G.parts.splice(0, G.parts.length - 450);
 }
 function shockwave(x, y, col, maxR, w){
   G.waves.push({ x:x, y:y, r:4, maxR:maxR, life:1, col:col, w:w || 3 });
@@ -5689,10 +5720,8 @@ function update(dt){
   var desiredAim = rawManualAim;
   if (bestTarget && shouldFire){
     desiredAim = Math.atan2(bestTarget.y - p.y, bestTarget.x - p.x);
-    // Smoothly and swiftly snap to line up with the target
-    var turnSpeed = 45;
-    p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * turnSpeed));
-    if (Math.abs(angDist(p.aim, desiredAim)) < 0.04) p.aim = desiredAim;
+    // Directly lock player heading and bullet trajectory to target with zero lag
+    p.aim = desiredAim;
   } else {
     // Smooth rotational interpolation (snappy when aiming, smooth when cruising)
     var turnSpeed = shouldFire ? 28 : 12;
@@ -6097,17 +6126,25 @@ function update(dt){
     }
   }
 
+  var pDragConst = Math.pow(0.06, dt);
   for (var pi = G.parts.length - 1; pi >= 0; pi--){
     var pp = G.parts[pi];
     pp.x += pp.vx*dt; pp.y += pp.vy*dt;
-    var pd = Math.pow(pp.drag, dt); pp.vx *= pd; pp.vy *= pd;
+    pp.vx *= pDragConst; pp.vy *= pDragConst;
     pp.life -= dt;
-    if (pp.life <= 0) G.parts.splice(pi, 1);
+    if (pp.life <= 0){
+      G.parts[pi] = G.parts[G.parts.length - 1];
+      G.parts.pop();
+    }
   }
+  var tDragConst = Math.pow(0.2, dt);
   for (var ti = G.texts.length - 1; ti >= 0; ti--){
     var tt = G.texts[ti];
-    tt.y += tt.v*dt; tt.v *= Math.pow(0.2, dt); tt.life -= dt;
-    if (tt.life <= 0) G.texts.splice(ti, 1);
+    tt.y += tt.v*dt; tt.v *= tDragConst; tt.life -= dt;
+    if (tt.life <= 0){
+      G.texts[ti] = G.texts[G.texts.length - 1];
+      G.texts.pop();
+    }
   }
   for (var wi2 = G.waves.length-1; wi2 >= 0; wi2--){
     var w3 = G.waves[wi2];
@@ -9354,6 +9391,13 @@ function render(){
   }
   ctx.globalAlpha = 1;
 
+  /* viewport culling bounds */
+  var vPad = 140;
+  var vMinX = G.camX - W / 2 - vPad;
+  var vMaxX = G.camX + W / 2 + vPad;
+  var vMinY = G.camY - H / 2 - vPad;
+  var vMaxY = G.camY + H / 2 + vPad;
+
   /* ghosts */
   for (var gh = 0; gh < G.ghosts.length; gh++){
     var go = G.ghosts[gh];
@@ -9378,6 +9422,7 @@ function render(){
   /* orbs */
   for (var o = 0; o < G.orbs.length; o++){
     var ob = G.orbs[o];
+    if (ob.x < vMinX || ob.x > vMaxX || ob.y < vMinY || ob.y > vMaxY) continue;
     var bob = Math.sin(G.t*6 + ob.x*0.1) * 1.5;
     var ox = ob.x, oy = ob.y + bob;
 
@@ -9439,6 +9484,7 @@ function render(){
   /* bullets with glowing plasma tracers */
   for (var b = 0; b < G.bullets.length; b++){
     var bu = G.bullets[b];
+    if (bu.x < vMinX || bu.x > vMaxX || bu.y < vMinY || bu.y > vMaxY) continue;
     var tl = Math.min(36, Math.hypot(bu.vx, bu.vy)*0.042);
     var tailX = bu.x - Math.cos(bu.ang)*tl, tailY = bu.y - Math.sin(bu.ang)*tl;
 
@@ -9473,6 +9519,7 @@ function render(){
   }
   for (var eb = 0; eb < G.ebullets.length; eb++){
     var eu = G.ebullets[eb];
+    if (eu.x < vMinX || eu.x > vMaxX || eu.y < vMinY || eu.y > vMaxY) continue;
     var col = eu.col || '#ff8fd8';
     var k = eu.kind;
 
@@ -9604,6 +9651,7 @@ function render(){
   ctx.globalCompositeOperation = 'lighter';
   for (var pi = 0; pi < G.parts.length; pi++){
     var pt = G.parts[pi];
+    if (pt.x < vMinX || pt.x > vMaxX || pt.y < vMinY || pt.y > vMaxY) continue;
     var pAlpha = Math.min(1, Math.max(0, pt.life / 0.6));
     ctx.globalAlpha = pAlpha;
     var pspd = Math.hypot(pt.vx || 0, pt.vy || 0);
@@ -9716,6 +9764,7 @@ function render(){
   /* enemies */
   for (var ei = 0; ei < G.enemies.length; ei++){
     var e = G.enemies[ei];
+    if (e.x < vMinX || e.x > vMaxX || e.y < vMinY || e.y > vMaxY) continue;
     drawEnemyModel(e);
     if (e.hp < e.maxhp){
       ctx.beginPath();
@@ -11688,7 +11737,7 @@ function drawBuffTray(){
     ctx.textAlign = 'left';
     ctx.font = 'bold 11px ui-monospace,monospace';
     ctx.fillStyle = isHover ? '#ffe066' : '#ffffff';
-    var displayName = (c.u.name.split(' ')[0] || c.u.name).toUpperCase();
+    var displayName = (c.u.isSkill ? c.u.name : (c.u.name.split(' ')[0] || c.u.name)).toUpperCase();
     ctx.fillText(displayName, cx + 58, cardY + 27);
 
     // 6. Category pill badge (Right side: BUFF or SKILL)
@@ -11830,190 +11879,116 @@ function drawCards(){
 }
 
 function drawVictory(){
-  // Cinematic Letterbox & Live Arena Spectate during Victory Mini-Animation (t < 2.5s)
-  if ((G.victoryTimer || 0) < 2.5){
-    var barH = 52;
-    ctx.save();
-    // Top cinematic letterbox bar
-    ctx.fillStyle = 'rgba(4, 8, 16, 0.92)';
-    ctx.fillRect(0, 0, W, barH);
-    ctx.strokeStyle = 'rgba(61, 220, 151, 0.55)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(0, barH);
-    ctx.lineTo(W, barH);
-    ctx.stroke();
-
-    // Top banner text & trophy icons
-    drawIcon('trophy', W/2 - 190, 26, 16, '#ffe066');
-    drawIcon('trophy', W/2 + 190, 26, 16, '#ffe066');
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 18px ui-monospace,monospace';
-    ctx.fillStyle = '#3ddc97';
-    ctx.shadowColor = '#3ddc97';
-    ctx.shadowBlur = 12;
-    ctx.fillText('SECTOR PURGED // APEX TITAN SLAIN', W/2, 33);
-    ctx.shadowBlur = 0;
-
-    // Bottom cinematic letterbox bar
-    ctx.fillStyle = 'rgba(4, 8, 16, 0.92)';
-    ctx.fillRect(0, H - barH, W, barH);
-    ctx.strokeStyle = 'rgba(61, 220, 151, 0.55)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(0, H - barH);
-    ctx.lineTo(W, H - barH);
-    ctx.stroke();
-
-    // Bottom skip prompt
-    ctx.font = 'bold 11px ui-monospace,monospace';
-    ctx.fillStyle = '#829bb0';
-    ctx.fillText('PRESS [SPACE] OR CLICK FOR MISSION SUMMARY', W/2, H - 22);
-    ctx.restore();
-    return;
-  }
-
-  // Smooth fade-in of the debrief summary card
-  var cardAlpha = Math.min(1, (G.victoryTimer - 2.5) / 0.4);
-  ctx.save();
-  ctx.globalAlpha = cardAlpha;
-
-  // Frosted dark cyberpunk vignette
-  ctx.fillStyle = 'rgba(4, 8, 16, 0.88)';
-  ctx.fillRect(0, 0, W, H);
-
-  var cw = Math.min(540, W * 0.92);
-  var ch = 430;
-  var cx0 = (W - cw) / 2;
-  var cy0 = (H - ch) / 2;
-
-  ctx.save();
-  // Card background
-  ctx.fillStyle = 'rgba(8, 14, 24, 0.96)';
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(cx0, cy0, cw, ch, 10);
-  else ctx.rect(cx0, cy0, cw, ch);
-  ctx.fill();
-
-  // Emerald/Gold outer glowing border
-  var pulse = 0.65 + Math.sin(G.t * 4) * 0.25;
-  ctx.strokeStyle = 'rgba(61, 220, 151, ' + pulse + ')';
-  ctx.lineWidth = 2.2;
-  ctx.shadowColor = '#3ddc97';
-  ctx.shadowBlur = 18;
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  // Tech corner brackets
-  var bl = 16;
-  var corners = [[cx0, cy0, 1, 1], [cx0 + cw, cy0, -1, 1], [cx0, cy0 + ch, 1, -1], [cx0 + cw, cy0 + ch, -1, -1]];
-  ctx.strokeStyle = '#ffe066';
-  ctx.lineWidth = 2.5;
-  for (var ci = 0; ci < 4; ci++){
-    var c = corners[ci];
-    ctx.beginPath();
-    ctx.moveTo(c[0] + c[2]*bl, c[1]);
-    ctx.lineTo(c[0], c[1]);
-    ctx.lineTo(c[0], c[1] + c[3]*bl);
-    ctx.stroke();
-  }
-
-  // Header Trophy Icon & Title
-  drawIcon('trophy', W/2 - 190, cy0 + 38, 18, '#ffe066');
-  drawIcon('trophy', W/2 + 190, cy0 + 38, 18, '#ffe066');
-
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 24px ui-monospace,monospace';
-  ctx.fillStyle = '#3ddc97';
-  ctx.shadowColor = '#3ddc97';
-  ctx.shadowBlur = 14;
-  ctx.fillText('SECTOR PURGED // TITAN SLAIN', W/2, cy0 + 44);
-  ctx.shadowBlur = 0;
-
-  // Subtitle
-  ctx.font = 'bold 12px ui-monospace,monospace';
-  ctx.fillStyle = '#ffe066';
-  ctx.fillText('ABYSS LEVIATHAN VANQUISHED // OPERATIONAL APEX REACHED', W/2, cy0 + 72);
-
-  // Divider line
-  ctx.strokeStyle = 'rgba(61, 220, 151, 0.35)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(cx0 + 40, cy0 + 94);
-  ctx.lineTo(cx0 + cw - 40, cy0 + 94);
-  ctx.stroke();
-
-  // Stats Grid
+  // Non-intrusive floating HUD: Keeps boss death animation, arena, and map 100% visible
   var p = G.player;
   var m = Math.floor(G.t / 60), s = Math.floor(G.t % 60);
   var timeStr = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-  var statY = cy0 + 124;
-  var col1 = cx0 + 44, col2 = cx0 + cw / 2 + 10;
 
-  function drawVicStat(iconName, x, y, label, val, valCol){
-    drawIcon(iconName, x + 6, y - 4, 11, valCol || '#35f0ff');
-    ctx.fillStyle = '#829bb0';
-    ctx.font = '11px ui-monospace,monospace';
+  ctx.save();
+
+  // Top sleek telemetry banner
+  var barH = 48;
+  ctx.fillStyle = 'rgba(4, 8, 16, 0.75)';
+  ctx.fillRect(0, 0, W, barH);
+  ctx.strokeStyle = 'rgba(61, 220, 151, 0.65)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, barH);
+  ctx.lineTo(W, barH);
+  ctx.stroke();
+
+  // Trophy icons and victory title
+  drawIcon('trophy', W/2 - 210, 24, 15, '#ffe066');
+  drawIcon('trophy', W/2 + 210, 24, 15, '#ffe066');
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 16px ui-monospace,monospace';
+  ctx.fillStyle = '#3ddc97';
+  ctx.shadowColor = '#3ddc97';
+  ctx.shadowBlur = 10;
+  ctx.fillText('SECTOR PURGED // APEX TITAN SLAIN', W/2, 22);
+  ctx.shadowBlur = 0;
+
+  // Sub-telemetry readout
+  ctx.font = 'bold 10px ui-monospace,monospace';
+  ctx.fillStyle = '#ffe066';
+  ctx.fillText('TIME ' + timeStr + '   KILLS ' + G.kills + '   STREAK x' + G.best + '   HULL LV ' + (p ? p.lvl : 1), W/2, 38);
+
+  // Floating bottom action buttons (Sleek HUD buttons, zero blocking modal)
+  var btnW = 155, btnH = 42, gap = 16;
+  var totalW = btnW * 3 + gap * 2;
+  var startX = Math.round((W - totalW) / 2);
+  var btnY = H - 62;
+
+  G.victoryButtons = [
+    {
+      action: 'restart',
+      keyText: '[1]',
+      label: 'RESTART',
+      icon: 'restart',
+      col: '#3ddc97',
+      rect: { x: startX, y: btnY, w: btnW, h: btnH }
+    },
+    {
+      action: 'explore',
+      keyText: '[2]',
+      label: 'EXPLORE',
+      icon: 'compass',
+      col: '#35f0ff',
+      rect: { x: startX + btnW + gap, y: btnY, w: btnW, h: btnH }
+    },
+    {
+      action: 'title',
+      keyText: '[3]',
+      label: 'TITLE',
+      icon: 'chip',
+      col: '#ffe066',
+      rect: { x: startX + (btnW + gap) * 2, y: btnY, w: btnW, h: btnH }
+    }
+  ];
+
+  for (var i = 0; i < G.victoryButtons.length; i++){
+    var b = G.victoryButtons[i];
+    var r = b.rect;
+    var isHover = (mouse && mouse.active && mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h);
+
+    // Transparent glass button fill
+    ctx.fillStyle = isHover ? 'rgba(15, 30, 50, 0.85)' : 'rgba(5, 10, 20, 0.68)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, 6);
+    else ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.fill();
+
+    // High glow border
+    ctx.strokeStyle = isHover ? '#ffffff' : b.col;
+    ctx.lineWidth = isHover ? 2 : 1.2;
+    ctx.shadowBlur = isHover ? 12 : 5;
+    ctx.shadowColor = b.col;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Key badge [1], [2], [3]
+    var kw = 24, kh = 22;
+    var kx = r.x + 8, ky = r.y + (r.h - kh) / 2;
+    ctx.fillStyle = isHover ? b.col : 'rgba(255, 255, 255, 0.12)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(kx, ky, kw, kh, 3);
+    else ctx.rect(kx, ky, kw, kh);
+    ctx.fill();
+    ctx.strokeStyle = b.col; ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 11px ui-monospace,monospace';
+    ctx.fillStyle = isHover ? '#050811' : b.col;
+    ctx.fillText(b.keyText, kx + kw / 2, ky + 15);
+
+    // Icon & Label
+    drawIcon(b.icon, r.x + 44, r.y + r.h / 2, 14, isHover ? '#ffffff' : b.col);
     ctx.textAlign = 'left';
-    ctx.fillText(label, x + 20, y);
-    ctx.fillStyle = valCol || '#ffffff';
     ctx.font = 'bold 12px ui-monospace,monospace';
-    ctx.fillText(val, x + 120, y);
+    ctx.fillStyle = isHover ? '#ffffff' : b.col;
+    ctx.fillText(b.label, r.x + 58, r.y + 26);
   }
 
-  drawVicStat('trophy',    col1, statY,      'TARGET STATUS', 'APEX PURGED', '#3ddc97');
-  drawVicStat('clock',     col2, statY,      'SURVIVAL TIME', timeStr, '#35f0ff');
-  drawVicStat('crosshair', col1, statY + 28, 'HOSTILES DESTROYED', '' + G.kills, '#35f0ff');
-  drawVicStat('flame',     col2, statY + 28, 'PEAK STREAK', 'x' + G.best, '#ffe066');
-  drawVicStat('chip',      col1, statY + 56, 'FINAL HULL LEVEL', 'LV ' + (p ? p.lvl : 1), '#3ddc97');
-  drawVicStat('bolt',      col2, statY + 56, 'TITAN ESSENCE', '+5 GOLD EXP', '#ffe066');
-
-  // Record capsule
-  var recY = cy0 + 224;
-  var recW = cw - 80;
-  var recX = cx0 + 40;
-  ctx.fillStyle = 'rgba(61, 220, 151, 0.10)';
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(recX, recY, recW, 36, 6);
-  else ctx.rect(recX, recY, recW, 36);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(61, 220, 151, 0.45)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  drawIcon('trophy', recX + 22, recY + 18, 12, '#3ddc97');
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#3ddc97';
-  ctx.font = 'bold 11px ui-monospace,monospace';
-  ctx.fillText('RECORD CLEARED: ' + G.kills + ' KILLS     PEAK x' + G.best + ' STREAK     LV ' + (p ? p.lvl : 1), W/2 + 8, recY + 22);
-
-  // Play Again Button Pod
-  var rstBtnY = cy0 + 284;
-  var rstBtnW = cw - 80;
-  var rstBtnX = cx0 + 40;
-  var rstBtnH = 46;
-
-  var isHoverRst = mouse && mouse.active && mouse.x >= rstBtnX && mouse.x <= rstBtnX + rstBtnW && mouse.y >= rstBtnY && mouse.y <= rstBtnY + rstBtnH;
-  ctx.fillStyle = isHoverRst ? 'rgba(61, 220, 151, 0.32)' : 'rgba(61, 220, 151, 0.15)';
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(rstBtnX, rstBtnY, rstBtnW, rstBtnH, 6);
-  else ctx.rect(rstBtnX, rstBtnY, rstBtnW, rstBtnH);
-  ctx.fill();
-  ctx.strokeStyle = isHoverRst ? '#ffffff' : '#3ddc97';
-  ctx.lineWidth = isHoverRst ? 2.2 : 1.5;
-  ctx.stroke();
-
-  drawIcon('restart', W/2 - 130, rstBtnY + 23, 14, isHoverRst ? '#ffffff' : '#3ddc97');
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 14px ui-monospace,monospace';
-  ctx.fillStyle = isHoverRst ? '#ffffff' : '#3ddc97';
-  ctx.fillText('START NEW RUN [SPACE / ENTER]', W/2 + 10, rstBtnY + 28);
-
-  ctx.font = '10px ui-monospace,monospace';
-  ctx.fillStyle = '#829bb0';
-  ctx.fillText('CLICK ANYWHERE OR PRESS SPACE TO REDEPLOY', W/2, cy0 + ch - 22);
-
-  ctx.restore();
   ctx.restore();
 }
 
@@ -12212,7 +12187,7 @@ function drawSkillSwapTray(){
     {
       slot: 'q',
       keyText: '[ 1 / Q ]',
-      actionTitle: 'EQUIP [Q]: ' + sk.name,
+      actionTitle: sk.name.toUpperCase() + ' [Q]',
       currSkill: qSk,
       accentCol: '#35f0ff',
       target: 'q'
