@@ -1318,7 +1318,7 @@ function beep(freq, dur, type, vol, slide){
 /* ================= ACTIVE SKILLS SYSTEM ================= */
 var ACTIVE_SKILLS = {
   nova: {
-    id: 'nova', name: 'NOVA BURST', sub: 'EMP Hex-Shockwave', icon: 'star', col: '#35f0ff', cd: 10,
+    id: 'nova', name: 'NOVA', sub: 'EMP Hex-Shockwave', icon: 'star', col: '#35f0ff', cd: 10,
     desc: 'Hexagonal EMP grid: vaporizes bullets, 180 DMG & stuns for 2.2s',
     activate: function(p){
       sound.skillNova();
@@ -1328,7 +1328,7 @@ var ACTIVE_SKILLS = {
       shockwave(p.x, p.y, '#ffffff', 260, 2);
       burst(p.x, p.y, '#35f0ff', 55);
       burst(p.x, p.y, '#ffffff', 30);
-      addText(p.x, p.y - 50, 'NOVA BURST', '#35f0ff', 22);
+      addText(p.x, p.y - 50, 'NOVA', '#35f0ff', 22);
 
       G.empWaves = G.empWaves || [];
       G.empWaves.push({ x: p.x, y: p.y, r: 10, maxR: 440, life: 0.55, maxLife: 0.55, col: '#35f0ff' });
@@ -1355,7 +1355,7 @@ var ACTIVE_SKILLS = {
     }
   },
   timewarp: {
-    id: 'timewarp', name: 'CHRONO STASIS', sub: 'Temporal Astrolabe', icon: 'clock', col: '#b388ff', cd: 13, duration: 4.5,
+    id: 'timewarp', name: 'STASIS', sub: 'Temporal Astrolabe', icon: 'clock', col: '#b388ff', cd: 13, duration: 4.5,
     desc: 'Slows time by 80% for 4.5s; grants +45% speed, phantom mirage trails',
     activate: function(p, sData){
       sound.skillTimeWarp();
@@ -1365,11 +1365,11 @@ var ACTIVE_SKILLS = {
       shockwave(p.x, p.y, '#b388ff', 440, 3);
       shockwave(p.x, p.y, '#ffffff', 220, 2);
       burst(p.x, p.y, '#b388ff', 40);
-      addText(p.x, p.y - 50, 'CHRONO STASIS', '#b388ff', 22);
+      addText(p.x, p.y - 50, 'STASIS', '#b388ff', 22);
     }
   },
   laser: {
-    id: 'laser', name: 'ION LANCE', sub: 'Twin-Helix Beam Cannon', icon: 'bolt', col: '#ffe066', cd: 12, duration: 3.2,
+    id: 'laser', name: 'LANCE', sub: 'Twin-Helix Beam Cannon', icon: 'bolt', col: '#ffe066', cd: 12, duration: 3.2,
     desc: 'Twin-helix piercing orbital laser with violent plasma impact sparks',
     activate: function(p, sData){
       sound.skillLaser();
@@ -1378,11 +1378,11 @@ var ACTIVE_SKILLS = {
       G.shake = Math.min(20, G.shake + 8);
       shockwave(p.x, p.y, '#ffe066', 220, 3);
       burst(p.x, p.y, '#ffe066', 35);
-      addText(p.x, p.y - 50, 'ION LANCE', '#ffe066', 22);
+      addText(p.x, p.y - 50, 'LANCE', '#ffe066', 22);
     }
   },
   barrier: {
-    id: 'barrier', name: 'AEGIS MATRIX', sub: '3D Hex-Shield & Drones', icon: 'shield', col: '#3ddc97', cd: 12, duration: 4.0,
+    id: 'barrier', name: 'BARRIER', sub: '3D Hex-Shield & Drones', icon: 'shield', col: '#3ddc97', cd: 12, duration: 4.0,
     desc: '4s invulnerability, heals +30 HP, 3 drone emitters & reflects projectiles',
     activate: function(p, sData){
       sound.skillBarrier();
@@ -1392,12 +1392,12 @@ var ACTIVE_SKILLS = {
       p.inv = 4.0;
       shockwave(p.x, p.y, '#3ddc97', 260, 4);
       burst(p.x, p.y, '#3ddc97', 40);
-      addText(p.x, p.y - 50, 'AEGIS MATRIX', '#3ddc97', 22);
+      addText(p.x, p.y - 50, 'BARRIER', '#3ddc97', 22);
       addText(p.x, p.y - 24, '+30 HP', '#7dffcf', 16);
     }
   },
   vortex: {
-    id: 'vortex', name: 'GRAVITY SINGULARITY', sub: 'Kerr Black Hole', icon: 'funnel', col: '#ff4d6d', cd: 11,
+    id: 'vortex', name: 'VORTEX', sub: 'Kerr Black Hole', icon: 'funnel', col: '#ff4d6d', cd: 11,
     desc: 'Relativistic black hole: sucks enemies/bullets, implodes in cosmic nova',
     activate: function(p){
       sound.skillVortex();
@@ -1410,11 +1410,11 @@ var ACTIVE_SKILLS = {
       });
       shockwave(p.x, p.y, '#ff4d6d', 180, 2);
       burst(p.x, p.y, '#ff4d6d', 25);
-      addText(p.x, p.y - 50, 'GRAVITY VORTEX', '#ff4d6d', 22);
+      addText(p.x, p.y - 50, 'VORTEX', '#ff4d6d', 22);
     }
   },
   missiles: {
-    id: 'missiles', name: 'MICRO-MISSILE SALVO', sub: 'Swarm Cluster Ordnance', icon: 'missile', col: '#ff7b00', cd: 11,
+    id: 'missiles', name: 'MISSILES', sub: 'Swarm Cluster Ordnance', icon: 'missile', col: '#ff7b00', cd: 11,
     desc: 'Launches 18 smart-homing micro-missiles with fiery exhaust & cluster AOE',
     activate: function(p){
       if (sound.skillMissileLaunch) sound.skillMissileLaunch();
@@ -1424,11 +1424,11 @@ var ACTIVE_SKILLS = {
       G.shake = Math.min(20, G.shake + 6);
       shockwave(p.x, p.y, '#ff7b00', 160, 2);
       burst(p.x, p.y, '#ff7b00', 25);
-      addText(p.x, p.y - 50, 'MISSILE SALVO', '#ff7b00', 22);
+      addText(p.x, p.y - 50, 'MISSILES', '#ff7b00', 22);
     }
   },
   tesla: {
-    id: 'tesla', name: 'TESLA OVERLOAD', sub: 'Chain Lightning Conduit', icon: 'tesla', col: '#00f0ff', cd: 12,
+    id: 'tesla', name: 'TESLA', sub: 'Chain Lightning Conduit', icon: 'tesla', col: '#00f0ff', cd: 12,
     desc: 'Unleashes 12 branched chain-lightning arcs with 180 DMG & total paralysis',
     activate: function(p){
       if (sound.skillTesla) sound.skillTesla();
@@ -1437,7 +1437,7 @@ var ACTIVE_SKILLS = {
       shockwave(p.x, p.y, '#00f0ff', 360, 3);
       burst(p.x, p.y, '#00f0ff', 40);
       burst(p.x, p.y, '#ffffff', 20);
-      addText(p.x, p.y - 50, 'TESLA OVERLOAD', '#00f0ff', 22);
+      addText(p.x, p.y - 50, 'TESLA', '#00f0ff', 22);
 
       G.teslaArcs = G.teslaArcs || [];
       // Find up to 4 closest primary enemies within 550px
@@ -1480,7 +1480,7 @@ var ACTIVE_SKILLS = {
     }
   },
   glaives: {
-    id: 'glaives', name: 'ORBITAL GLAIVES', sub: 'Plasma Blade Drones', icon: 'blade', col: '#ff007f', cd: 13, duration: 6.0,
+    id: 'glaives', name: 'GLAIVES', sub: 'Plasma Blade Drones', icon: 'blade', col: '#ff007f', cd: 13, duration: 6.0,
     desc: '3 spinning plasma shurikens slice enemies for 320 DPS & launch as boomerangs',
     activate: function(p, sData){
       if (sound.skillGlaiveDeploy) sound.skillGlaiveDeploy();
@@ -1493,11 +1493,11 @@ var ACTIVE_SKILLS = {
       ];
       shockwave(p.x, p.y, '#ff007f', 180, 3);
       burst(p.x, p.y, '#ff007f', 30);
-      addText(p.x, p.y - 50, 'ORBITAL GLAIVES', '#ff007f', 22);
+      addText(p.x, p.y - 50, 'GLAIVES', '#ff007f', 22);
     }
   },
   decoy: {
-    id: 'decoy', name: 'PHANTOM MIRAGE', sub: 'Holographic Wingmen', icon: 'ghost', col: '#a855f7', cd: 14, duration: 5.0,
+    id: 'decoy', name: 'MIRAGE', sub: 'Holographic Wingmen', icon: 'ghost', col: '#a855f7', cd: 14, duration: 5.0,
     desc: 'Deploys 2 holographic fighter drones that draw fire, mimic lasers & detonate',
     activate: function(p, sData){
       if (sound.skillDecoyDeploy) sound.skillDecoyDeploy();
@@ -1509,11 +1509,11 @@ var ACTIVE_SKILLS = {
       ];
       shockwave(p.x, p.y, '#a855f7', 160, 2);
       burst(p.x, p.y, '#a855f7', 35);
-      addText(p.x, p.y - 50, 'PHANTOM MIRAGE', '#a855f7', 22);
+      addText(p.x, p.y - 50, 'MIRAGE', '#a855f7', 22);
     }
   },
   warpstrike: {
-    id: 'warpstrike', name: 'QUANTUM WARP-STRIKE', sub: 'Dimensional Blink Slice', icon: 'warp', col: '#00ffaa', cd: 10,
+    id: 'warpstrike', name: 'WARP', sub: 'Dimensional Blink Slice', icon: 'warp', col: '#00ffaa', cd: 10,
     desc: 'Instant 450px blink slice (250 DMG) leaving a collapsing rift implosion',
     activate: function(p){
       if (sound.skillWarpStrike) sound.skillWarpStrike();
@@ -1534,7 +1534,7 @@ var ACTIVE_SKILLS = {
       shockwave(x2, y2, '#ffffff', 180, 3);
       burst(x2, y2, '#00ffaa', 35);
       G.shake = Math.min(22, G.shake + 10);
-      addText(x2, y2 - 50, 'WARP STRIKE', '#00ffaa', 22);
+      addText(x2, y2 - 50, 'WARP', '#00ffaa', 22);
 
       // Slice through all enemies along the trajectory
       var sdx = x2 - x1, sdy = y2 - y1, sLenSq = sdx*sdx + sdy*sdy || 1;
@@ -1741,23 +1741,23 @@ var ENEMY_TYPES = {
 
 var UPGRADES = [
   { name:'OVERCHARGE',       icon:'bolt',      desc:'+50% damage, +15% bullet speed',  apply:function(p){ p.damage *= 1.50; p.bvelocity = (p.bvelocity || 1) * 1.15; } },
-  { name:'RAPID CYCLE',      icon:'chevron',   desc:'+35% fire rate, tighter focus',    apply:function(p){ p.fireRate *= 1.35; } },
-  { name:'SPLIT BARREL',     icon:'fan',       desc:'+1 projectile, +15% damage',      apply:function(p){ p.shots += 1; p.damage *= 1.15; } },
-  { name:'LIGHT STEP',       icon:'arrow',     desc:'+22% move speed, +20% dash reach',apply:function(p){ p.speed *= 1.22; } },
+  { name:'RAPID',            icon:'chevron',   desc:'+35% fire rate, tighter focus',    apply:function(p){ p.fireRate *= 1.35; } },
+  { name:'SPLIT',            icon:'fan',       desc:'+1 projectile, +15% damage',      apply:function(p){ p.shots += 1; p.damage *= 1.15; } },
+  { name:'AGILITY',          icon:'arrow',     desc:'+22% move speed, +20% dash reach',apply:function(p){ p.speed *= 1.22; } },
   { name:'PLATING',          icon:'shield',    desc:'+55 max HP, heal 55, +12% armor',   apply:function(p){ p.maxhp += 55; p.hp = Math.min(p.maxhp, p.hp + 55); p.resist = (p.resist || 1) * 0.88; } },
-  { name:'PIERCING ROUNDS',  icon:'pierce',    desc:'pierce +2 targets, +25% damage',   apply:function(p){ p.pierce += 2; p.damage *= 1.25; } },
-  { name:'HEAVY SLUG',       icon:'slug',      desc:'+50% bullet size, +30% damage',   apply:function(p){ p.bsize *= 1.50; p.damage *= 1.30; } },
-  { name:'DATA SIPHON',      icon:'funnel',    desc:'+45% XP gain, +25 max HP, heal 25',apply:function(p){ p.xpGain *= 1.45; p.maxhp += 25; p.hp += 25; } },
-  { name:'CRIT CORE',        icon:'star',      desc:'+22% crit chance (3.0x damage)',  apply:function(p){ p.crit += 0.22; p.critMult = (p.critMult || 2.5) + 0.50; } },
+  { name:'PIERCE',           icon:'pierce',    desc:'pierce +2 targets, +25% damage',   apply:function(p){ p.pierce += 2; p.damage *= 1.25; } },
+  { name:'SLUG',             icon:'slug',      desc:'+50% bullet size, +30% damage',   apply:function(p){ p.bsize *= 1.50; p.damage *= 1.30; } },
+  { name:'SIPHON',           icon:'funnel',    desc:'+45% XP gain, +25 max HP, heal 25',apply:function(p){ p.xpGain *= 1.45; p.maxhp += 25; p.hp += 25; } },
+  { name:'PRECISION',        icon:'star',      desc:'+22% crit chance (3.0x damage)',  apply:function(p){ p.crit += 0.22; p.critMult = (p.critMult || 2.5) + 0.50; } },
   { name:'NANOWEAVE',        icon:'cross',     desc:'+2.8 HP/sec nanite regeneration',  apply:function(p){ p.regen += 2.8; } },
   { name:'VAMPIRIC',         icon:'drop',      desc:'heal 8% of damage dealt',          apply:function(p){ p.lifesteal += 0.08; } },
-  { name:'PHASE DASH',       icon:'dash',      desc:'dash cd -40%, +invulnerability',  apply:function(p){ p.dashCd *= 0.60; p.invDur = (p.invDur || 0.28) + 0.16; } },
-  { name:'TWIN FIRE',        icon:'twin',      desc:'+35% fire rate, +15% damage',      apply:function(p){ p.fireRate *= 1.35; p.damage *= 1.15; } },
+  { name:'BLINK',            icon:'dash',      desc:'dash cd -40%, +invulnerability',  apply:function(p){ p.dashCd *= 0.60; p.invDur = (p.invDur || 0.28) + 0.16; } },
+  { name:'DUAL',             icon:'twin',      desc:'+35% fire rate, +15% damage',      apply:function(p){ p.fireRate *= 1.35; p.damage *= 1.15; } },
   { name:'AEGIS',            icon:'hex',       desc:'+45 max HP, +1.6 regen, +10% armor',apply:function(p){ p.maxhp += 45; p.hp = Math.min(p.maxhp, p.hp + 45); p.regen += 1.6; p.resist = (p.resist || 1) * 0.90; } },
-  { name:'TARGETING MATRIX', icon:'crosshair', desc:'AI auto-locks hostiles, +20% fire',apply:function(p){ p.autoAim = true; p.fireRate *= 1.20; } },
-  { name:'TITAN SLAYER',     icon:'skull',     desc:'+55% damage vs Bosses & Heavies',  apply:function(p){ p.bossDamageMult = (p.bossDamageMult || 1) * 1.55; p.crit += 0.10; } },
-  { name:'KINETIC SHIELD',   icon:'shield',    desc:'+50 HP regenerating energy barrier',apply:function(p){ p.maxShield = (p.maxShield || 0) + 50; p.shield = (p.shield || 0) + 50; } },
-  { name:'HYPER-CORE',       icon:'bolt',      desc:'skill cd -35%, +25% active duration',apply:function(p){ p.skillCdMult = (p.skillCdMult || 1) * 0.65; if (p.skills && p.skills.q) p.skills.q.maxCd *= 0.65; } }
+  { name:'AUTOLOCK',         icon:'crosshair', desc:'AI auto-locks hostiles, +20% fire',apply:function(p){ p.autoAim = true; p.fireRate *= 1.20; } },
+  { name:'SLAYER',           icon:'skull',     desc:'+55% damage vs Bosses & Heavies',  apply:function(p){ p.bossDamageMult = (p.bossDamageMult || 1) * 1.55; p.crit += 0.10; } },
+  { name:'SHIELD',           icon:'shield',    desc:'+50 HP regenerating energy barrier',apply:function(p){ p.maxShield = (p.maxShield || 0) + 50; p.shield = (p.shield || 0) + 50; } },
+  { name:'OVERCLOCK',        icon:'bolt',      desc:'skill cd -35%, +25% active duration',apply:function(p){ p.skillCdMult = (p.skillCdMult || 1) * 0.65; if (p.skills && p.skills.q) p.skills.q.maxCd *= 0.65; } }
 ];
 log('2 ok');
 </script>
@@ -2547,7 +2547,7 @@ function addXP(v){
 function openLevelUp(){
   var p = G.player;
   var buffPool = UPGRADES.filter(function(u){
-    if (u.name === 'TARGETING MATRIX' && p.autoAim) return false;
+    if ((u.name === 'AUTOLOCK' || u.name === 'TARGETING MATRIX') && p.autoAim) return false;
     return true;
   }).map(function(u){
     return {
@@ -2595,24 +2595,34 @@ function openLevelUp(){
     };
   });
 
+  // Shuffle buff pool
+  for (var bi = buffPool.length - 1; bi > 0; bi--){
+    var bj = Math.floor(Math.random() * (bi + 1));
+    var btemp = buffPool[bi]; buffPool[bi] = buffPool[bj]; buffPool[bj] = btemp;
+  }
+
+  // Active skills are rare: 18% roll chance for a skill slot among choices
   var pick = [];
-  var needsSkill = (!p.skills || !p.skills.q.skill);
-  if (needsSkill && skillPool.length > 0){
+  var rollSkill = (Math.random() < 0.18 && skillPool.length > 0);
+  if (rollSkill){
     var skIdx = Math.floor(Math.random() * skillPool.length);
-    pick.push(skillPool.splice(skIdx, 1)[0]);
+    pick.push(skillPool[skIdx]);
   }
-  var combinedPool = buffPool.concat(skillPool);
-  for (var si = combinedPool.length - 1; si > 0; si--){
-    var sj = Math.floor(Math.random() * (si + 1));
-    var temp = combinedPool[si]; combinedPool[si] = combinedPool[sj]; combinedPool[sj] = temp;
-  }
-  while (pick.length < 3 && combinedPool.length > 0){
-    var item = combinedPool.pop();
+
+  // Fill remaining slots with unique buffs from buffPool
+  while (pick.length < 3 && buffPool.length > 0){
+    var bItem = buffPool.pop();
     var dup = false;
     for (var pi = 0; pi < pick.length; pi++){
-      if (pick[pi].name === item.name) { dup = true; break; }
+      if (pick[pi].name === bItem.name) { dup = true; break; }
     }
-    if (!dup) pick.push(item);
+    if (!dup) pick.push(bItem);
+  }
+
+  // Shuffle final choices so rare skill is not fixed in first slot
+  for (var si = pick.length - 1; si > 0; si--){
+    var sj = Math.floor(Math.random() * (si + 1));
+    var ptemp = pick[si]; pick[si] = pick[sj]; pick[sj] = ptemp;
   }
 
   var newCards = [];
@@ -7710,19 +7720,6 @@ function drawPlayer(){
     ctx.restore();
   }
 
-  // Wingtip Aerodynamic Contrail Streamers at High Velocity
-  if (spd > 120){
-    var contrailAlpha = clamp((spd - 120) / 220, 0, 0.65);
-    ctx.strokeStyle = 'rgba(53, 240, 255, ' + contrailAlpha + ')';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(-vr * 0.75, -vr * 0.95);
-    ctx.lineTo(-vr * (0.75 + spd * 0.06), -vr * 0.95);
-    ctx.moveTo(-vr * 0.75, vr * 0.95);
-    ctx.lineTo(-vr * (0.75 + spd * 0.06), vr * 0.95);
-    ctx.stroke();
-  }
-
   ctx.beginPath();
   ctx.moveTo(vr*1.45, 0);
   ctx.lineTo(-vr*0.2, -vr*0.62);
@@ -9780,12 +9777,13 @@ function drawHUD(){
     ctx.restore();
   }
 
-  /* Merged Bottom Command Deck: Single Active Skill Pod [Q] + Telemetry Strip */
-  var skW = Math.max(160, Math.min(220, Math.floor(W * 0.18)));
+  /* Active Skill Pod [Q] Positioned Above Radar (Middle Right Edge) */
+  var mw = 114, mh = 114;
+  var mx = W - mw - 20, my = Math.round((H - mh - 16) / 2);
+  var skW = mw;
   var skH = 46;
-  var deckY = H - 56;
-  var sx = 18;
-  var sy = deckY;
+  var sx = mx;
+  var sy = my - skH - 12;
 
   G.skillRectQ = { x: sx, y: sy, w: skW, h: skH };
   G.skillRectE = null;
@@ -9802,9 +9800,9 @@ function drawHUD(){
   else ctx.rect(sx, sy, skW, skH);
   ctx.fill();
 
-  // Keycap Badge [Q]
-  var kw = 24, kh = 24;
-  var kx = sx + 8, ky = sy + (skH - kh)/2;
+  // Keycap Badge [Q] (Left side)
+  var kw = 20, kh = 20;
+  var kx = sx + 6, ky = sy + (skH - kh)/2;
   ctx.fillStyle = (sk && sData.cd <= 0) ? sk.col : 'rgba(255, 255, 255, 0.12)';
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(kx, ky, kw, kh, 4);
@@ -9813,52 +9811,45 @@ function drawHUD(){
   ctx.strokeStyle = sk ? sk.col : '#5a7080'; ctx.lineWidth = 1; ctx.stroke();
 
   ctx.textAlign = 'center';
-  ctx.font = 'bold 12px ui-monospace,monospace';
+  ctx.font = 'bold 11px ui-monospace,monospace';
   ctx.fillStyle = (sk && sData.cd <= 0) ? '#05060a' : '#ffffff';
-  ctx.fillText('Q', kx + kw/2, ky + 16);
+  ctx.fillText('Q', kx + kw/2, ky + 14);
 
   if (sk){
     var ready = (sData.cd <= 0);
     ctx.strokeStyle = ready ? sk.col : 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = ready ? 2 : 1;
+    ctx.lineWidth = ready ? 1.8 : 1;
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(sx, sy, skW, skH, 6);
     else ctx.rect(sx, sy, skW, skH);
     ctx.stroke();
 
     // Circular Icon Bay
-    var bayX = sx + 48, bayY = sy + skH/2;
+    var bayX = sx + 39, bayY = sy + skH/2;
     ctx.fillStyle = ready ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.3)';
-    ctx.beginPath(); ctx.arc(bayX, bayY, 13, 0, TAU); ctx.fill();
-    drawIcon(sk.icon, bayX, bayY, 16, ready ? sk.col : '#829bb0');
+    ctx.beginPath(); ctx.arc(bayX, bayY, 11, 0, TAU); ctx.fill();
+    drawIcon(sk.icon, bayX, bayY, 14, ready ? sk.col : '#829bb0');
 
+    // Skill Name & Status
     ctx.textAlign = 'left';
-    ctx.font = 'bold 11px ui-monospace,monospace';
-    ctx.fillStyle = ready ? '#ffffff' : '#9fb6c8';
-    var maxSkNameW = skW - 74;
-    var skDisplayName = sk.name;
-    var skTm = ctx.measureText ? ctx.measureText(skDisplayName) : null;
-    if (skTm && typeof skTm.width === 'number' && skTm.width > maxSkNameW){
-      while (skDisplayName.length > 3 && ctx.measureText(skDisplayName + '..') && ctx.measureText(skDisplayName + '..').width > maxSkNameW){
-        skDisplayName = skDisplayName.slice(0, -1);
-      }
-      skDisplayName += '..';
-    }
-    ctx.fillText(skDisplayName, sx + 68, sy + 18);
-
     ctx.font = 'bold 10px ui-monospace,monospace';
+    ctx.fillStyle = ready ? '#ffffff' : '#9fb6c8';
+    var skDisplayName = (sk.name.split(' ')[0] || sk.name).toUpperCase();
+    ctx.fillText(skDisplayName, sx + 54, sy + 18);
+
+    ctx.font = 'bold 9px ui-monospace,monospace';
     if (sData.activeT > 0){
       ctx.fillStyle = '#ffe066';
-      ctx.fillText('ACTIVE ' + sData.activeT.toFixed(1) + 's', sx + 68, sy + 34);
+      ctx.fillText('ACTIVE ' + sData.activeT.toFixed(1) + 's', sx + 54, sy + 32);
     } else if (ready){
       ctx.fillStyle = sk.col;
-      ctx.fillText('READY', sx + 68, sy + 34);
+      ctx.fillText('READY', sx + 54, sy + 32);
     } else {
       ctx.fillStyle = '#8fa8be';
-      ctx.fillText('CD ' + sData.cd.toFixed(1) + 's', sx + 68, sy + 34);
+      ctx.fillText('CD ' + sData.cd.toFixed(1) + 's', sx + 54, sy + 32);
       var cdFrac = 1 - (sData.cd / (sData.maxCd || 10));
       ctx.fillStyle = sk.col;
-      ctx.fillRect(sx + 68, sy + 38, (skW - 76) * cdFrac, 3);
+      ctx.fillRect(sx + 54, sy + 36, (skW - 60) * cdFrac, 2);
     }
   } else {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -9868,20 +9859,21 @@ function drawHUD(){
     else ctx.rect(sx, sy, skW, skH);
     ctx.stroke();
 
-    drawIcon('lock', sx + 46, sy + skH/2, 13, '#5a7080');
+    drawIcon('lock', sx + 38, sy + skH/2, 12, '#5a7080');
 
     ctx.textAlign = 'left';
-    ctx.font = 'bold 11px ui-monospace,monospace';
+    ctx.font = 'bold 10px ui-monospace,monospace';
     ctx.fillStyle = '#64748b';
-    ctx.fillText('VACANT', sx + 66, sy + 21);
-    ctx.font = '9px ui-monospace,monospace';
-    ctx.fillText('HARVEST SKILL CORE', sx + 66, sy + 34);
+    ctx.fillText('VACANT', sx + 54, sy + 22);
+    ctx.font = '8px ui-monospace,monospace';
+    ctx.fillText('SKILL SLOT', sx + 54, sy + 33);
   }
   ctx.restore();
 
-  /* Center/Right Bay: Passive Buff Telemetry Strip (Runs between [Q] & Right Edge) */
-  var midX = sx + skW + 12;
-  var midW = (W - 18) - midX;
+  /* Centered Bottom Bay: Passive Buff Telemetry Strip (Centered Horizontally) */
+  var deckY = H - 56;
+  var midW = Math.min(W - 36, 760);
+  var midX = Math.round((W - midW) / 2);
   if (!isBuffActive && midW > 120){
     ctx.save();
     ctx.fillStyle = 'rgba(6, 10, 22, 0.78)';
@@ -10557,20 +10549,17 @@ function drawBuffTray(){
   var cards = G.buffTray.cards || [];
   if (!cards.length) return;
 
-  var skW = Math.max(160, Math.min(220, Math.floor(W * 0.18)));
-  var midX = 18 + skW + 12;
-  var midW = (W - 18) - midX;
   var cardY = G.buffTray.animY;
-
   var ch = 44;
-  var gap = 10;
-  var cw = Math.min(230, Math.floor((midW - gap * (cards.length - 1)) / cards.length));
+  var gap = 12;
+  var maxTrayW = Math.min(W - 80, 720);
+  var cw = Math.min(220, Math.floor((maxTrayW - gap * (cards.length - 1)) / cards.length));
   var totalW = cw * cards.length + gap * (cards.length - 1);
-  var startX = midX + Math.max(0, (midW - totalW) / 2);
+  var startX = Math.round((W - totalW) / 2);
 
   ctx.save();
 
-  // Floating compact prompt above cards (Clean, zero emojis)
+  // Floating compact prompt above cards (Centered on screen)
   var promptY = cardY - 9;
   var pulse = 0.85 + Math.sin(G.t * 8) * 0.15;
   ctx.save();
@@ -10585,16 +10574,19 @@ function drawBuffTray(){
     var queueText = (G.queue > 1 ? ('  [+' + (G.queue - 1) + ' READY]') : '');
     promptText = 'UPGRADES // SELECT [1] [2] [3] OR CLICK' + queueText;
   }
-  ctx.fillText(promptText, midX + midW / 2, promptY);
+  ctx.fillText(promptText, W / 2, promptY);
   ctx.restore();
 
-  // Draw small, sleek compact cards with clear names and zero wordy text
+  var hoveredCard = null;
+
+  // Draw small, sleek compact cards with clear single-word names
   for (var i = 0; i < cards.length; i++){
     var c = cards[i];
     var cx = startX + i * (cw + gap);
     c.rect = { x: cx, y: cardY, w: cw, h: ch };
 
     var isHover = (mouse && mouse.active && mouse.x >= cx && mouse.x <= cx + cw && mouse.y >= cardY && mouse.y <= cardY + ch);
+    if (isHover) hoveredCard = c;
     var isSkill = c.u.isSkill || false;
     var themeCol = isSkill ? '#b388ff' : '#35f0ff';
 
@@ -10635,19 +10627,11 @@ function drawBuffTray(){
     var iconX = cx + 44, iconY = cardY + ch / 2;
     drawIcon(c.u.icon, iconX, iconY, 16, isHover ? '#ffe066' : themeCol);
 
-    // 5. Clear Bold Name (Crisp and legible, no wordy description)
+    // 5. Clear One-Word Name (strictly single word, zero description on card)
     ctx.textAlign = 'left';
     ctx.font = 'bold 11px ui-monospace,monospace';
     ctx.fillStyle = isHover ? '#ffe066' : '#ffffff';
-    var maxNameW = cw - 110;
-    var displayName = c.u.name;
-    var tm = ctx.measureText ? ctx.measureText(displayName) : null;
-    if (tm && typeof tm.width === 'number' && tm.width > maxNameW){
-      while (displayName.length > 4 && ctx.measureText(displayName + '..') && ctx.measureText(displayName + '..').width > maxNameW){
-        displayName = displayName.slice(0, -1);
-      }
-      displayName += '..';
-    }
+    var displayName = (c.u.name.split(' ')[0] || c.u.name).toUpperCase();
     ctx.fillText(displayName, cx + 58, cardY + 27);
 
     // 6. Category pill badge (Right side: BUFF or SKILL)
@@ -10666,6 +10650,36 @@ function drawBuffTray(){
     ctx.fillStyle = isSkill ? '#b388ff' : '#35f0ff';
     ctx.fillText(isSkill ? 'SKILL' : 'BUFF', catX + catW / 2, catY + 13);
 
+    ctx.restore();
+  }
+
+  // Floating Description Tooltip (Rendered ONLY when player hovers on a buff/skill)
+  if (hoveredCard && hoveredCard.u && hoveredCard.u.desc){
+    var hr = hoveredCard.rect;
+    ctx.save();
+    ctx.font = 'bold 11px ui-monospace,monospace';
+    var textW = ctx.measureText ? ctx.measureText(hoveredCard.u.desc).width : 200;
+    var tipW = Math.max(hr.w, textW + 28);
+    var tipH = 26;
+    var tipX = clamp(hr.x + hr.w/2 - tipW/2, 10, W - tipW - 10);
+    var tipY = hr.y - tipH - 8;
+
+    ctx.fillStyle = 'rgba(6, 12, 24, 0.95)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(tipX, tipY, tipW, tipH, 5);
+    else ctx.rect(tipX, tipY, tipW, tipH);
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffe066';
+    ctx.lineWidth = 1.3;
+    ctx.shadowColor = '#ffe066';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(hoveredCard.u.desc, tipX + tipW / 2, tipY + 17);
     ctx.restore();
   }
 
