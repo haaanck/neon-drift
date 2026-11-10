@@ -1901,7 +1901,7 @@ function newGame(){
     // Wave state system
     wave:1, waveState:'combat', waveTimer:0, waveTime:0,
     waveTotal:16, waveKills:0, waveSpawned:0, waveSquads:[], waveTitle:'', waveSub:'',
-    waveBossSpawned: false, boss: null, skillCores: [], vortices: [],
+    waveBossSpawned: false, boss: null, dyingBoss: null, victoryTimer: 0, skillCores: [], vortices: [],
     playerMissiles: [], teslaArcs: [], orbitalGlaives: [], phantomDecoys: [], quantumRifts: [], empWaves: [],
     skillRectQ: null, skillRect: null, thermitePools: [],
     teslaMarkers: [], blackHoles: [], bossSkillAlert: null, missionToast: null,
@@ -2192,7 +2192,11 @@ window.addEventListener('keydown', function(e){
     if (k === 'x'){ enterTrainingRoom(); return; }
     if (k === ' ' || k === 'enter' || k.startsWith('arrow')) startGame();
   }
-  else if ((G.state === 'dead' || G.state === 'victory') && (k === 'r' || k === ' ' || k === 'enter')) startGame();
+  else if (G.state === 'victory' && (k === 'r' || k === ' ' || k === 'enter')){
+    if ((G.victoryTimer || 0) < 2.5) G.victoryTimer = 2.6;
+    else startGame();
+  }
+  else if (G.state === 'dead' && (k === 'r' || k === ' ' || k === 'enter')) startGame();
   else if (G.state === 'levelup'){
     if (k === '1' || k === 'numpad1') choose(0);
     else if (k === '2' || k === 'numpad2') choose(1);
@@ -2315,7 +2319,15 @@ function handleUiClick(cx, cy){
     startGame();
     return true;
   }
-  if (G.state === 'dead' || G.state === 'victory'){ startGame(); return true; }
+  if (G.state === 'victory'){
+    if ((G.victoryTimer || 0) < 2.5){
+      G.victoryTimer = 2.6;
+      return true;
+    }
+    startGame();
+    return true;
+  }
+  if (G.state === 'dead'){ startGame(); return true; }
   if (G.state === 'skill_swap' || (G.skillSwapTray && G.skillSwapTray.active)){
     if (G.skillSwapCardQ){
       var sq = G.skillSwapCardQ;
@@ -4110,8 +4122,43 @@ function killEnemy(e, idx, wasCrit){
       return;
     }
 
+    // Initialize cinematic Dying Boss destruction sequence
+    var bossShards = [];
+    for (var sdi = 0; sdi < 40; sdi++){
+      var sda = (sdi / 40) * TAU + rnd(-0.15, 0.15);
+      var sds = rnd(120, 360);
+      bossShards.push({
+        x: e.x,
+        y: e.y,
+        vx: Math.cos(sda) * sds,
+        vy: Math.sin(sda) * sds,
+        rot: Math.random() * TAU,
+        vrot: rnd(-10, 10),
+        size: rnd(7, 18),
+        color: Math.random() < 0.6 ? (e.color || '#ff3565') : (Math.random() < 0.5 ? '#ffe066' : '#ffffff'),
+        life: rnd(1.4, 2.6),
+        maxLife: 2.6
+      });
+    }
+    G.dyingBoss = {
+      x: e.x,
+      y: e.y,
+      r: e.r || 45,
+      color: e.color || '#ff3565',
+      bossType: e.bossType || 'abyss',
+      ang: e.ang || 0,
+      segments: e.segments ? e.segments.slice() : null,
+      mandibleOpen: e.mandibleOpen || 0,
+      phase: e.phase || 2,
+      phase2: e.phase2 !== undefined ? e.phase2 : true,
+      t: 0,
+      maxT: 3.2,
+      shards: bossShards,
+      flashes: 0,
+      detonated: false
+    };
+
     G.boss = null;
-    sound.bossDeath();
     G.state = 'victory';
     G.victoryTimer = 0;
     sound.waveClear();
@@ -4216,8 +4263,149 @@ function update(dt){
     }
     return;
   }
-  if (G.state === 'levelup' || G.state === 'dead' || G.state === 'victory'){
-    if (G.state === 'victory') G.victoryTimer = (G.victoryTimer || 0) + dt;
+  if (G.state === 'victory'){
+    G.victoryTimer = (G.victoryTimer || 0) + dt;
+    G.t += dt;
+    G.shake = Math.max(0, G.shake - dt * 35);
+    if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 2.5);
+
+    var p = G.player;
+    var db = G.dyingBoss;
+
+    // 1. Dying Boss Simulation
+    if (db){
+      db.t += dt;
+      // Pre-detonation tremors & spontaneous micro bursts
+      if (db.t < 1.2){
+        if (Math.random() < dt * 24){
+          var bx = db.x + rnd(-db.r * 0.7, db.r * 0.7);
+          var by = db.y + rnd(-db.r * 0.7, db.r * 0.7);
+          burst(bx, by, Math.random() < 0.5 ? '#ffe066' : db.color, 8);
+          if (Math.random() < 0.3) shockwave(bx, by, '#ffffff', 80, 2);
+        }
+      } else if (!db.detonated){
+        // Supernova detonation at t = 1.2s!
+        db.detonated = true;
+        G.flash = 0.95;
+        G.shake = 45;
+        sound.bossDeath();
+        shockwave(db.x, db.y, '#ffffff', 650, 7);
+        shockwave(db.x, db.y, db.color, 480, 5);
+        shockwave(db.x, db.y, '#35f0ff', 320, 4);
+        burst(db.x, db.y, db.color, 120);
+        burst(db.x, db.y, '#ffffff', 80);
+        burst(db.x, db.y, '#ffe066', 60);
+      }
+
+      // Shard physics (active post-detonation)
+      if (db.detonated && db.shards){
+        for (var sdi = db.shards.length - 1; sdi >= 0; sdi--){
+          var sh = db.shards[sdi];
+          sh.x += sh.vx * dt;
+          sh.y += sh.vy * dt;
+          var drag = Math.pow(0.84, dt * 60);
+          sh.vx *= drag;
+          sh.vy *= drag;
+          sh.rot += sh.vrot * dt;
+          sh.life -= dt;
+          if (Math.random() < dt * 10){
+            burst(sh.x, sh.y, sh.color, 1);
+          }
+          if (sh.life <= 0) db.shards.splice(sdi, 1);
+        }
+      }
+    }
+
+    // 2. Player Celebratory Flight Maneuver
+    if (p){
+      p.inv = 999;
+      var epicX = db ? db.x : p.x;
+      var epicY = db ? db.y : p.y;
+      var orbitR = 150;
+      var vicAng = G.victoryTimer * 2.8;
+      var targetX = epicX + Math.cos(vicAng) * orbitR;
+      var targetY = epicY + Math.sin(vicAng) * orbitR;
+
+      p.vx += (targetX - p.x) * Math.min(1, dt * 6);
+      p.vy += (targetY - p.y) * Math.min(1, dt * 6);
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= Math.pow(0.9, dt * 60);
+      p.vy *= Math.pow(0.9, dt * 60);
+
+      var flightHeading = Math.atan2(p.vy, p.vx);
+      if (Math.hypot(p.vx, p.vy) > 10){
+        p.ang = flightHeading;
+        p.aim = flightHeading;
+      }
+
+      // Overdrive celebration thrusters
+      if (Math.random() < dt * 35){
+        var exX = p.x - Math.cos(p.ang) * (p.r + 6);
+        var exY = p.y - Math.sin(p.ang) * (p.r + 6);
+        burst(exX, exY, '#ffe066', 2);
+        burst(exX, exY, '#3ddc97', 2);
+      }
+
+      // Fireworks bursts every ~0.35s
+      if (!G._lastFirework || G.victoryTimer - G._lastFirework > 0.35){
+        G._lastFirework = G.victoryTimer;
+        var fwX = p.x + rnd(-80, 80);
+        var fwY = p.y - rnd(40, 120);
+        var fwCols = ['#3ddc97', '#ffe066', '#35f0ff', '#ff3565', '#d557ff'];
+        var fwCol = fwCols[Math.floor(Math.random() * fwCols.length)];
+        burst(fwX, fwY, fwCol, 18);
+        shockwave(fwX, fwY, fwCol, 75, 2);
+      }
+
+      // Magnetically attract and pull nearby EXP orbs
+      for (var oi = 0; oi < G.orbs.length; oi++){
+        var ob = G.orbs[oi];
+        var odx = p.x - ob.x, ody = p.y - ob.y;
+        var odist = Math.hypot(odx, ody);
+        if (odist < 240){
+          ob.vx += (odx / odist) * 350 * dt;
+          ob.vy += (ody / odist) * 350 * dt;
+        }
+      }
+    }
+
+    // 3. Smooth Camera Tracking Midpoint
+    var camTgtX = (db ? (db.x * 0.45 + (p ? p.x : db.x) * 0.55) : (p ? p.x : W/2));
+    var camTgtY = (db ? (db.y * 0.45 + (p ? p.y : db.y) * 0.55) : (p ? p.y : H/2));
+    G.camX += (camTgtX - G.camX) * Math.min(1, dt * 5);
+    G.camY += (camTgtY - G.camY) * Math.min(1, dt * 5);
+
+    // 4. Update particles, shockwaves, orbs, texts
+    for (var j = G.parts.length - 1; j >= 0; j--){
+      var q = G.parts[j];
+      q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt;
+      if (q.life <= 0) G.parts.splice(j, 1);
+    }
+    for (var wj = G.waves.length - 1; wj >= 0; wj--){
+      var w2 = G.waves[wj];
+      w2.r += (w2.maxR - w2.r) * Math.min(1, dt * 6); w2.life -= dt * 1.4;
+      if (w2.life <= 0) G.waves.splice(wj, 1);
+    }
+    for (var obi = G.orbs.length - 1; obi >= 0; obi--){
+      var morb = G.orbs[obi];
+      morb.x += morb.vx * dt; morb.y += morb.vy * dt;
+      morb.vx *= Math.pow(0.92, dt * 60);
+      morb.vy *= Math.pow(0.92, dt * 60);
+      morb.rot = (morb.rot || 0) + dt * 2;
+    }
+    for (var ti = G.texts.length - 1; ti >= 0; ti--){
+      var txt = G.texts[ti];
+      txt.y += txt.vy * dt; txt.life -= dt;
+      if (txt.life <= 0) G.texts.splice(ti, 1);
+    }
+    for (var gi = G.ghosts.length - 1; gi >= 0; gi--){
+      G.ghosts[gi].life -= dt * 3;
+      if (G.ghosts[gi].life <= 0) G.ghosts.splice(gi, 1);
+    }
+    return;
+  }
+  if (G.state === 'levelup' || G.state === 'dead'){
     G.shake = Math.max(0, G.shake - dt*45);
     for (var j = G.parts.length-1; j >= 0; j--){
       var q = G.parts[j];
@@ -7159,6 +7347,141 @@ function drawBossModel(b){
   ctx.restore();
 }
 
+function drawDyingBoss(db){
+  if (!db) return;
+  ctx.save();
+  var t = db.t;
+
+  if (t < 1.2){
+    // Phase 1: Destabilization tremor & electric fissures
+    var tremorIntensity = (t / 1.2) * 10 + 2;
+    var tx = db.x + rnd(-tremorIntensity, tremorIntensity);
+    var ty = db.y + rnd(-tremorIntensity, tremorIntensity);
+
+    var segs = null;
+    if (db.segments){
+      var dx = tx - db.x;
+      var dy = ty - db.y;
+      segs = db.segments.map(function(s){
+        return {
+          x: s.x + dx,
+          y: s.y + dy,
+          ang: s.ang,
+          width: s.width,
+          height: s.height,
+          finLength: s.finLength
+        };
+      });
+    }
+
+    var tempBoss = {
+      x: tx, y: ty, r: db.r,
+      ang: db.ang + rnd(-0.06, 0.06),
+      color: Math.random() < 0.4 ? '#ffffff' : (Math.random() < 0.2 ? '#ffe066' : db.color),
+      bossType: db.bossType,
+      segments: segs,
+      mandibleOpen: db.mandibleOpen,
+      flash: (Math.sin(t * 35) > 0 ? 0.85 : 0),
+      phaseT: t,
+      phase: db.phase || 2,
+      phase2: db.phase2 !== undefined ? db.phase2 : true,
+      chargeT: 0,
+      squash: 0.18 * Math.sin(t * 28),
+      hitAng: Math.random() * TAU,
+      spawn: 1,
+      dormant: false,
+      invuln: false,
+      hp: 1, maxhp: 100
+    };
+    drawBossModel(tempBoss);
+
+    // Electric energy crackles & lightning fissures across the hull
+    ctx.strokeStyle = Math.random() < 0.5 ? '#ffffff' : '#35f0ff';
+    ctx.lineWidth = 2.2;
+    ctx.shadowColor = '#35f0ff';
+    ctx.shadowBlur = 12;
+    for (var fi = 0; fi < 6; fi++){
+      var fa = fi * (TAU / 6) + t * 4;
+      var fDist = db.r * (0.35 + 0.65 * Math.random());
+      var fx1 = tx + Math.cos(fa) * (db.r * 0.15);
+      var fy1 = ty + Math.sin(fa) * (db.r * 0.15);
+      var fxMid = tx + Math.cos(fa + rnd(-0.5, 0.5)) * (fDist * 0.6);
+      var fyMid = ty + Math.sin(fa + rnd(-0.5, 0.5)) * (fDist * 0.6);
+      var fx2 = tx + Math.cos(fa) * fDist;
+      var fy2 = ty + Math.sin(fa) * fDist;
+      ctx.beginPath();
+      ctx.moveTo(fx1, fy1);
+      ctx.lineTo(fxMid, fyMid);
+      ctx.lineTo(fx2, fy2);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+
+    // Expanding white-hot fusion core
+    var coreR = (t / 1.2) * (db.r * 0.85);
+    var coreGrad = ctx.createRadialGradient(tx, ty, 0, tx, ty, Math.max(1, coreR));
+    coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    coreGrad.addColorStop(0.5, 'rgba(255, 224, 102, 0.65)');
+    coreGrad.addColorStop(1, 'rgba(255, 53, 101, 0)');
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(tx, ty, coreR, 0, TAU);
+    ctx.fill();
+  } else {
+    // Phase 2: Radiant Supernova Starburst Rays
+    var postT = t - 1.2;
+    var burstAlpha = Math.max(0, 1 - postT / 0.9);
+    if (burstAlpha > 0.01){
+      ctx.save();
+      ctx.globalAlpha = burstAlpha;
+      ctx.strokeStyle = '#ffffff';
+      ctx.shadowColor = db.color;
+      ctx.shadowBlur = 18;
+      var rayCount = 16;
+      var rayLen = 140 + postT * 420;
+      for (var ri = 0; ri < rayCount; ri++){
+        var ra = (ri / rayCount) * TAU + postT * 0.6;
+        var rWidth = (ri % 2 === 0 ? 3.5 : 1.8);
+        ctx.lineWidth = rWidth;
+        ctx.beginPath();
+        ctx.moveTo(db.x + Math.cos(ra) * 15, db.y + Math.sin(ra) * 15);
+        ctx.lineTo(db.x + Math.cos(ra) * rayLen, db.y + Math.sin(ra) * rayLen);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 40 Tumbling Geometric Crystal Shards
+    if (db.shards){
+      for (var si = 0; si < db.shards.length; si++){
+        var sh = db.shards[si];
+        var shAlpha = Math.max(0, Math.min(1, sh.life / (sh.maxLife * 0.6)));
+        ctx.save();
+        ctx.translate(sh.x, sh.y);
+        ctx.rotate(sh.rot);
+        ctx.globalAlpha = shAlpha;
+        ctx.fillStyle = sh.color;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.shadowColor = sh.color;
+        ctx.shadowBlur = 8;
+        var sz = sh.size;
+        ctx.beginPath();
+        ctx.moveTo(0, -sz);
+        ctx.lineTo(sz * 0.7, 0);
+        ctx.lineTo(0, sz * 0.8);
+        ctx.lineTo(-sz * 0.7, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
 function drawEnemyModel(e){
   if (e.isBoss){ drawBossModel(e); return; }
   ctx.save();
@@ -7758,10 +8081,10 @@ function drawPlayer(){
   ctx.restore();
 
   /* invuln ring */
-  if (p.inv > 0.02){
+  if (p.inv > 0.02 && G.state !== 'victory'){
     ctx.beginPath();
     ctx.arc(p.x, p.y, r*1.9, 0, TAU);
-    ctx.strokeStyle = 'rgba(255,255,255,' + (p.inv*1.4) + ')';
+    ctx.strokeStyle = 'rgba(255,255,255,' + Math.min(1, p.inv*1.4) + ')';
     ctx.lineWidth = 1.5; ctx.stroke();
   }
 
@@ -7780,6 +8103,63 @@ function drawPlayer(){
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(p.x + Math.cos(ga) * r * 2.1 - 2, p.y + Math.sin(ga) * r * 2.1 - 2, 4, 4);
     }
+    ctx.restore();
+  }
+
+  /* Victory Celebratory Aura & Champion Hex-Crown */
+  if (G.state === 'victory'){
+    ctx.save();
+    var vt = G.victoryTimer || 0;
+    var crownR = r * 2.5;
+    var crownRot = vt * 2.2;
+    ctx.strokeStyle = '#3ddc97';
+    ctx.lineWidth = 2.2;
+    ctx.shadowColor = '#3ddc97';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    for (var hi = 0; hi < 6; hi++){
+      var ha = crownRot + hi * (TAU / 6);
+      var hx = p.x + Math.cos(ha) * crownR;
+      var hy = p.y + Math.sin(ha) * crownR;
+      if (hi === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    for (var gi = 0; gi < 6; gi++){
+      var ga = crownRot + gi * (TAU / 6);
+      var gx = p.x + Math.cos(ga) * crownR;
+      var gy = p.y + Math.sin(ga) * crownR;
+      var gCol = (gi % 2 === 0 ? '#3ddc97' : '#ffe066');
+      ctx.fillStyle = gCol;
+      ctx.shadowColor = gCol;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 4.5, 0, TAU);
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = 'rgba(255, 224, 102, 0.65)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 1.85, 0, TAU);
+    ctx.stroke();
+
+    var textBob = Math.sin(vt * 6) * 4;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 13px ui-monospace,monospace';
+    ctx.fillStyle = '#3ddc97';
+    ctx.shadowColor = '#3ddc97';
+    ctx.shadowBlur = 12;
+    ctx.fillText('VICTORIOUS', p.x, p.y - r * 2.5 - 14 + textBob);
+
+    ctx.font = 'bold 9px ui-monospace,monospace';
+    ctx.fillStyle = '#ffe066';
+    ctx.shadowColor = '#ffe066';
+    ctx.shadowBlur = 8;
+    ctx.fillText('APEX OVERDRIVE', p.x, p.y - r * 2.5 - 2 + textBob);
+
     ctx.restore();
   }
 }
@@ -8614,6 +8994,9 @@ function render(){
       ctx.lineWidth = 2; ctx.stroke();
     }
   }
+
+  /* Dying Boss Destruction Mini-Animation */
+  if (G.dyingBoss) drawDyingBoss(G.dyingBoss);
 
   /* Laser sight aim line & tactical aim assist lock indicator (Active during directional fire) */
   var isFiring = G.playerFiring;
@@ -10653,6 +11036,54 @@ function drawCards(){
 }
 
 function drawVictory(){
+  // Cinematic Letterbox & Live Arena Spectate during Victory Mini-Animation (t < 2.5s)
+  if ((G.victoryTimer || 0) < 2.5){
+    var barH = 52;
+    ctx.save();
+    // Top cinematic letterbox bar
+    ctx.fillStyle = 'rgba(4, 8, 16, 0.92)';
+    ctx.fillRect(0, 0, W, barH);
+    ctx.strokeStyle = 'rgba(61, 220, 151, 0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, barH);
+    ctx.lineTo(W, barH);
+    ctx.stroke();
+
+    // Top banner text & trophy icons
+    drawIcon('trophy', W/2 - 190, 26, 16, '#ffe066');
+    drawIcon('trophy', W/2 + 190, 26, 16, '#ffe066');
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 18px ui-monospace,monospace';
+    ctx.fillStyle = '#3ddc97';
+    ctx.shadowColor = '#3ddc97';
+    ctx.shadowBlur = 12;
+    ctx.fillText('SECTOR PURGED // APEX TITAN SLAIN', W/2, 33);
+    ctx.shadowBlur = 0;
+
+    // Bottom cinematic letterbox bar
+    ctx.fillStyle = 'rgba(4, 8, 16, 0.92)';
+    ctx.fillRect(0, H - barH, W, barH);
+    ctx.strokeStyle = 'rgba(61, 220, 151, 0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, H - barH);
+    ctx.lineTo(W, H - barH);
+    ctx.stroke();
+
+    // Bottom skip prompt
+    ctx.font = 'bold 11px ui-monospace,monospace';
+    ctx.fillStyle = '#829bb0';
+    ctx.fillText('PRESS [SPACE] OR CLICK FOR MISSION SUMMARY', W/2, H - 22);
+    ctx.restore();
+    return;
+  }
+
+  // Smooth fade-in of the debrief summary card
+  var cardAlpha = Math.min(1, (G.victoryTimer - 2.5) / 0.4);
+  ctx.save();
+  ctx.globalAlpha = cardAlpha;
+
   // Frosted dark cyberpunk vignette
   ctx.fillStyle = 'rgba(4, 8, 16, 0.88)';
   ctx.fillRect(0, 0, W, H);
@@ -10788,6 +11219,7 @@ function drawVictory(){
   ctx.fillStyle = '#829bb0';
   ctx.fillText('CLICK ANYWHERE OR PRESS SPACE TO REDEPLOY', W/2, cy0 + ch - 22);
 
+  ctx.restore();
   ctx.restore();
 }
 
