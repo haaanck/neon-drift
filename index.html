@@ -4661,12 +4661,12 @@ function update(dt){
   p.muzzle = Math.max(0, p.muzzle - dt*14);
   p.squash = Math.max(0, p.squash - dt*4);
 
-  /* movement: WASD or Arrow keys */
+  /* movement: WASD (Arrow keys are reserved for directional shooting) */
   var mx = 0, my = 0;
-  if (keys['a'] || keys['arrowleft'])  mx--;
-  if (keys['d'] || keys['arrowright']) mx++;
-  if (keys['w'] || keys['arrowup'])    my--;
-  if (keys['s'] || keys['arrowdown'])  my++;
+  if (keys['a']) mx--;
+  if (keys['d']) mx++;
+  if (keys['w']) my--;
+  if (keys['s']) my++;
   if (touch.active){
     var tdx = touch.x - p.x, tdy = touch.y - p.y, td = Math.hypot(tdx, tdy);
     if (td > 26){ mx = tdx/td; my = tdy/td; }
@@ -4748,48 +4748,65 @@ function update(dt){
   G.camX += ((p.x + p.vx*0.12) - G.camX) * Math.min(1, dt*7);
   G.camY += ((p.y + p.vy*0.12) - G.camY) * Math.min(1, dt*7);
 
-  /* Manual Aim with Smooth Aim Assist */
+  /* Directional Aim & Shoot Controls (Arrow Keys with Smooth Aim Assist) */
+  var sx = 0, sy = 0;
+  if (keys['arrowleft'])  sx--;
+  if (keys['arrowright']) sx++;
+  if (keys['arrowup'])    sy--;
+  if (keys['arrowdown'])  sy++;
+  var isArrowAim = (sx !== 0 || sy !== 0);
+
+  var shouldFire = false;
   var rawManualAim = p.aim;
 
-  if (touch.active){
+  if (isArrowAim){
+    // Directional Arrow Keys: aim and fire in chosen direction
+    rawManualAim = Math.atan2(sy, sx);
+    shouldFire = true;
+  } else if (touch.active){
+    // Touchscreen aim
     var tdx = touch.x - p.x, tdy = touch.y - p.y;
     if (Math.hypot(tdx, tdy) > 18){
       rawManualAim = Math.atan2(tdy, tdx);
+      shouldFire = true;
     }
-  } else if (mouse.active){
-    var mWorldX = G.camX + (mouse.x - W/2) / ZOOM;
-    var mWorldY = G.camY + (mouse.y - H/2) / ZOOM;
-    var mdx = mWorldX - p.x, mdy = mWorldY - p.y;
-    if (Math.hypot(mdx, mdy) > 12){
-      rawManualAim = Math.atan2(mdy, mdx);
+  } else if (!!keys['control'] || !!keys['j'] || !!keys['k'] || !!keys['z']){
+    // Fire key pressed without directional arrows: fire in current facing direction
+    rawManualAim = p.aim;
+    shouldFire = true;
+  } else {
+    // Cruising mode: ship smoothly heads toward movement vector when maneuvering
+    if (Math.hypot(p.vx, p.vy) > 20){
+      rawManualAim = Math.atan2(p.vy, p.vx);
     }
-  } else if (Math.hypot(p.vx, p.vy) > 25) {
-    rawManualAim = Math.atan2(p.vy, p.vx);
+    shouldFire = false;
   }
 
-  // 2. Aim Assist: Forward tactical cone hostile search
-  var assistCone = 0.54 * (1 + (p.aimAssistBonus || 0)); // ~31-45 degrees cone
-  var maxAssistRange = 750;
+  // Aim Assist: Forward tactical cone hostile search in aimed direction
   var bestTarget = null;
-  var bestScore = -1;
+  if (shouldFire){
+    var assistCone = 0.54 * (1 + (p.aimAssistBonus || 0)); // ~31-45 degrees cone
+    var maxAssistRange = 750;
+    var bestScore = -1;
 
-  for (var ei = 0; ei < G.enemies.length; ei++){
-    var e = G.enemies[ei];
-    if (e.hp <= 0) continue;
-    var edx = e.x - p.x;
-    var edy = e.y - p.y;
-    var edist = Math.hypot(edx, edy);
-    if (edist <= maxAssistRange && edist > 0){
-      var eang = Math.atan2(edy, edx);
-      var dAng = Math.abs(angDist(rawManualAim, eang));
-      if (dAng <= assistCone){
-        var angScore = 1 - (dAng / assistCone);
-        var distScore = 1 - (edist / maxAssistRange);
-        var score = angScore * 0.70 + distScore * 0.30;
-        if (e.isBoss) score *= 1.45;
-        if (score > bestScore){
-          bestScore = score;
-          bestTarget = e;
+    for (var ei = 0; ei < G.enemies.length; ei++){
+      var e = G.enemies[ei];
+      if (e.hp <= 0) continue;
+      var edx = e.x - p.x;
+      var edy = e.y - p.y;
+      var edist = Math.hypot(edx, edy);
+      if (edist <= maxAssistRange && edist > 0){
+        var eang = Math.atan2(edy, edx);
+        var dAng = Math.abs(angDist(rawManualAim, eang));
+        if (dAng <= assistCone){
+          var angScore = 1 - (dAng / assistCone);
+          var distScore = 1 - (edist / maxAssistRange);
+          var score = angScore * 0.70 + distScore * 0.30;
+          if (e.isBoss) score *= 1.45;
+          if (score > bestScore){
+            bestScore = score;
+            bestTarget = e;
+          }
         }
       }
     }
@@ -4797,9 +4814,9 @@ function update(dt){
 
   G.aimAssistTarget = bestTarget;
 
-  // 3. Magnetic target pull with predictive velocity lead
+  // Magnetic target pull with predictive velocity lead
   var desiredAim = rawManualAim;
-  if (bestTarget){
+  if (bestTarget && shouldFire){
     var bSpeed = 660;
     var tLead = Math.min(0.8, Math.hypot(bestTarget.x - p.x, bestTarget.y - p.y) / bSpeed);
     var predX = bestTarget.x + (bestTarget.vx || 0) * tLead * 0.7;
@@ -4812,12 +4829,12 @@ function update(dt){
     desiredAim = rawManualAim + angToLead * pullFactor;
   }
 
-  // 4. Smooth rotational interpolation
-  p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * 26));
+  // Smooth rotational interpolation (snappy when aiming, smooth when cruising)
+  var turnSpeed = shouldFire ? 28 : 12;
+  p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * turnSpeed));
   var fireAngle = p.aim;
 
-  // 5. Fire command: ONLY fires when the player holds mouse button, touch, or fire key
-  var shouldFire = (mouse.down || touch.active || !!keys['control'] || !!keys['j'] || !!keys['k'] || !!keys['z']);
+  // Fire command: ONLY fires when the player holds arrow keys, touch, or fire key
   G.playerFiring = shouldFire;
 
   p.fireT -= dt;
@@ -4983,11 +5000,12 @@ function update(dt){
     } else if (!e.isBoss){
       e.vx = ux*e.spd; e.vy = uy*e.spd;
     }
-    e.kx *= Math.pow(0.0009, dt); e.ky *= Math.pow(0.0009, dt);
+    e.kx = (e.kx || 0) * Math.pow(0.0009, dt);
+    e.ky = (e.ky || 0) * Math.pow(0.0009, dt);
     var boundPadding = e.r + 8;
     e.x = clamp(e.x + (e.vx + e.kx)*enemyDt, boundPadding, ARENA - boundPadding);
     e.y = clamp(e.y + (e.vy + e.ky)*enemyDt, boundPadding, ARENA - boundPadding);
-    e.touchT -= dt;
+    e.touchT = (e.touchT || 0) - dt;
 
     if (barrierActive && d < e.r + p.r + 26 && e.touchT <= 0){
       e.touchT = 0.35;
@@ -8602,15 +8620,15 @@ function render(){
     }
   }
 
-  /* Laser sight aim line & tactical aim assist lock indicator */
-  var isFiring = G.playerFiring || (mouse && mouse.down) || (touch && touch.active);
+  /* Laser sight aim line & tactical aim assist lock indicator (Active during directional fire) */
+  var isFiring = G.playerFiring;
   var tgt = G.aimAssistTarget;
 
-  if (tgt && (isFiring || (mouse && mouse.active))){
+  if (tgt && isFiring){
     // Lock-on crosshair target ring on tracked hostile
     ctx.beginPath(); ctx.arc(tgt.x, tgt.y, tgt.r + 8, 0, TAU);
-    ctx.strokeStyle = isFiring ? 'rgba(53,240,255,0.85)' : 'rgba(53,240,255,0.45)';
-    ctx.lineWidth = isFiring ? 1.8 : 1.2;
+    ctx.strokeStyle = 'rgba(53,240,255,0.85)';
+    ctx.lineWidth = 1.8;
     ctx.stroke();
     for (var lk = 0; lk < 4; lk++){
       var la = lk * (TAU/4) + G.t * 3;
@@ -8619,12 +8637,10 @@ function render(){
       ctx.lineTo(tgt.x + Math.cos(la)*(tgt.r+13), tgt.y + Math.sin(la)*(tgt.r+13));
       ctx.stroke();
     }
-    if (isFiring){
-      ctx.beginPath();
-      ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
-      ctx.lineTo(tgt.x, tgt.y);
-      ctx.strokeStyle = 'rgba(53,240,255,0.45)'; ctx.lineWidth = 1.6; ctx.stroke();
-    }
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
+    ctx.lineTo(tgt.x, tgt.y);
+    ctx.strokeStyle = 'rgba(53,240,255,0.45)'; ctx.lineWidth = 1.6; ctx.stroke();
   } else if (isFiring){
     ctx.beginPath();
     ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
@@ -10407,7 +10423,7 @@ function drawPause(){
   ctx.font = '11px ui-monospace,monospace';
   ctx.fillStyle = '#678195';
   var hintY = cy0 + (G.godModeUnlocked ? 392 : 362);
-  ctx.fillText('CONTROLS: [WASD / ARROWS] Move  •  [LEFT CLICK] Fire  •  [SPACE] Dash  •  [Q] Skill  •  [P] Pause  •  [H] Home', W / 2, hintY);
+  ctx.fillText('CONTROLS: [WASD] Move  •  [ARROWS] Directional Fire  •  [SPACE] Dash  •  [Q] Skill  •  [P] Pause  •  [H] Home', W / 2, hintY);
 
   ctx.restore();
 }
@@ -11693,7 +11709,7 @@ function drawTitle(){
 
   ctx.fillStyle = '#35f0ff';
   ctx.font = 'bold 15px ui-monospace,monospace';
-  ctx.fillText('[WASD / ARROWS] MOVE   •   [LEFT CLICK] FIRE   •   [SPACE] DASH   •   [Q] SKILL   •   [P] PAUSE', W/2, H*0.63);
+  ctx.fillText('[WASD] MOVE   •   [ARROWS] DIRECTIONAL FIRE   •   [SPACE] DASH   •   [Q] SKILL   •   [P] PAUSE', W/2, H*0.63);
 
   ctx.fillStyle = '#7de8ff';
   ctx.font = '11px ui-monospace,monospace';
