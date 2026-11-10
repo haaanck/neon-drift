@@ -4785,7 +4785,7 @@ function update(dt){
   // Aim Assist: Forward tactical cone hostile search in aimed direction
   var bestTarget = null;
   if (shouldFire){
-    var assistCone = 0.54 * (1 + (p.aimAssistBonus || 0)); // ~31-45 degrees cone
+    var assistCone = 0.70 * (1 + (p.aimAssistBonus || 0)); // ~40-58 degrees cone
     var maxAssistRange = 750;
     var bestScore = -1;
 
@@ -4814,24 +4814,19 @@ function update(dt){
 
   G.aimAssistTarget = bestTarget;
 
-  // Magnetic target pull with predictive velocity lead
+  // Aim Assist: Line up player model directly to the target
   var desiredAim = rawManualAim;
   if (bestTarget && shouldFire){
-    var bSpeed = 660;
-    var tLead = Math.min(0.8, Math.hypot(bestTarget.x - p.x, bestTarget.y - p.y) / bSpeed);
-    var predX = bestTarget.x + (bestTarget.vx || 0) * tLead * 0.7;
-    var predY = bestTarget.y + (bestTarget.vy || 0) * tLead * 0.7;
-    var leadAngle = Math.atan2(predY - p.y, predX - p.x);
-
-    var angToLead = angDist(rawManualAim, leadAngle);
-    var pullFactor = Math.pow(Math.max(0, 1 - Math.abs(angToLead) / assistCone), 1.2) * 0.75;
-    if (p.aimAssistBonus) pullFactor = Math.min(0.92, pullFactor * (1 + p.aimAssistBonus));
-    desiredAim = rawManualAim + angToLead * pullFactor;
+    desiredAim = Math.atan2(bestTarget.y - p.y, bestTarget.x - p.x);
+    // Smoothly and swiftly snap to line up with the target
+    var turnSpeed = 45;
+    p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * turnSpeed));
+    if (Math.abs(angDist(p.aim, desiredAim)) < 0.04) p.aim = desiredAim;
+  } else {
+    // Smooth rotational interpolation (snappy when aiming, smooth when cruising)
+    var turnSpeed = shouldFire ? 28 : 12;
+    p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * turnSpeed));
   }
-
-  // Smooth rotational interpolation (snappy when aiming, smooth when cruising)
-  var turnSpeed = shouldFire ? 28 : 12;
-  p.aim = angLerp(p.aim, desiredAim, Math.min(1, dt * turnSpeed));
   var fireAngle = p.aim;
 
   // Fire command: ONLY fires when the player holds arrow keys, touch, or fire key
