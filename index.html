@@ -271,6 +271,607 @@ function drawMapTextures(cx, cy){
   }
 }
 
+/* ================= EXPLORATION & MAP POINTS OF INTEREST (POIS) ================= */
+
+function initMapFeatures(){
+  if (!G) return;
+
+  // 1. Slipstream Acceleration Gates (8 high-speed transit rings)
+  G.boostRings = [
+    { x: 1200, y: 2100, ang: 0, r: 42, cd: 0 },
+    { x: 3000, y: 2100, ang: Math.PI, r: 42, cd: 0 },
+    { x: 2100, y: 1200, ang: Math.PI/2, r: 42, cd: 0 },
+    { x: 2100, y: 3000, ang: -Math.PI/2, r: 42, cd: 0 },
+    { x: 1350, y: 1350, ang: Math.PI/4, r: 42, cd: 0 },
+    { x: 2850, y: 1350, ang: 3*Math.PI/4, r: 42, cd: 0 },
+    { x: 2850, y: 2850, ang: -3*Math.PI/4, r: 42, cd: 0 },
+    { x: 1350, y: 2850, ang: -Math.PI/4, r: 42, cd: 0 }
+  ];
+
+  // 2. Quantum Jump Rifts (2 interconnected wormhole pairs)
+  G.wormholes = [
+    { id: 'ALPHA-1', pairId: 'ALPHA-2', x: 800,  y: 800,  r: 40, cd: 0, partnerIdx: 1, col: '#bf5af2' },
+    { id: 'ALPHA-2', pairId: 'ALPHA-1', x: 3400, y: 3400, r: 40, cd: 0, partnerIdx: 0, col: '#bf5af2' },
+    { id: 'BETA-1',  pairId: 'BETA-2',  x: 3400, y: 800,  r: 40, cd: 0, partnerIdx: 3, col: '#35f0ff' },
+    { id: 'BETA-2',  pairId: 'BETA-1',  x: 800,  y: 3400, r: 40, cd: 0, partnerIdx: 2, col: '#35f0ff' }
+  ];
+
+  // 3. Derelict High-Tech Salvage Caches (4 exploratory tactical POIs)
+  G.salvagePods = [
+    { id: 'POD-ALPHA', name: 'TITAN WRECKAGE',  x: 950,  y: 1650, r: 32, progress: 0, maxT: 1.4, looted: false, cd: 0, col: '#ffe066' },
+    { id: 'POD-BETA',  name: 'CARGO CAPSULE',   x: 3250, y: 1550, r: 32, progress: 0, maxT: 1.4, looted: false, cd: 0, col: '#35f0ff' },
+    { id: 'POD-GAMMA', name: 'ARRAY BEACON',    x: 1050, y: 2950, r: 32, progress: 0, maxT: 1.4, looted: false, cd: 0, col: '#3ddc97' },
+    { id: 'POD-DELTA', name: 'ORBITAL VAULT',   x: 3150, y: 2950, r: 32, progress: 0, maxT: 1.4, looted: false, cd: 0, col: '#ff70a6' }
+  ];
+
+  // 4. Destructible Crystalline Asteroids (24 harvestable mineral clusters)
+  G.minerals = [];
+  var mineralSeed = 4417;
+  function mRnd(){ mineralSeed = (mineralSeed * 9301 + 49297) % 233280; return mineralSeed / 233280; }
+  var types = ['quartz', 'geode', 'nanite'];
+  var typeCols = { quartz: '#35f0ff', geode: '#ffe066', nanite: '#3ddc97' };
+  var typeHps = { quartz: 60, geode: 90, nanite: 75 };
+
+  for (var mi = 0; mi < 24; mi++){
+    var mType = types[mi % types.length];
+    var mx = 300 + mRnd() * (ARENA - 600);
+    var my = 300 + mRnd() * (ARENA - 600);
+    if (Math.hypot(mx - ARENA/2, my - ARENA/2) < 450){
+      mx += (mx > ARENA/2 ? 500 : -500);
+      my += (my > ARENA/2 ? 500 : -500);
+    }
+    var mr = 20 + mRnd() * 14;
+    var verts = [];
+    var vCount = 6 + Math.floor(mRnd() * 3);
+    for (var vi = 0; vi < vCount; vi++){
+      var va = (vi / vCount) * TAU;
+      var vr = mr * (0.8 + mRnd() * 0.4);
+      verts.push({ x: Math.cos(va) * vr, y: Math.sin(va) * vr });
+    }
+    G.minerals.push({
+      x: mx, y: my, r: mr,
+      type: mType,
+      col: typeCols[mType],
+      hp: typeHps[mType], maxHp: typeHps[mType],
+      verts: verts,
+      rot: mRnd() * TAU,
+      vrot: (mRnd() - 0.5) * 0.4,
+      flash: 0, shake: 0,
+      respawnTimer: 0
+    });
+  }
+
+  G.activeZone = null;
+  G.zoneToastTimer = 0;
+}
+
+function hitMineral(m, dmg, isCrit){
+  m.hp -= dmg;
+  m.flash = 0.25;
+  m.shake = 6;
+  sound.hit(isCrit);
+  burst(m.x, m.y, m.col, 5);
+  if (m.hp <= 0){
+    destroyMineral(m);
+  }
+}
+
+function destroyMineral(m){
+  m.hp = 0;
+  m.respawnTimer = 45;
+  burst(m.x, m.y, m.col, 28);
+  burst(m.x, m.y, '#ffffff', 14);
+  shockwave(m.x, m.y, m.col, 95, 3);
+  sound.kill('mineral');
+
+  if (m.type === 'geode'){
+    shockwave(m.x, m.y, '#ffe066', 150, 4);
+    for (var ei = 0; ei < G.enemies.length; ei++){
+      var en = G.enemies[ei];
+      if (en.hp <= 0 || (en.isBoss && en.dormant)) continue;
+      if (Math.hypot(en.x - m.x, en.y - m.y) < 150){
+        en.hp -= 160; en.flash = 1;
+        if (en.hp <= 0) killEnemy(en, ei, false);
+      }
+    }
+    for (var gi = 0; gi < 2; gi++){
+      var ga = Math.random() * TAU, gd = rnd(15, 45);
+      G.orbs.push({
+        x: clamp(m.x + Math.cos(ga)*gd, 40, ARENA-40),
+        y: clamp(m.y + Math.sin(ga)*gd, 40, ARENA-40),
+        vx: Math.cos(ga)*120, vy: Math.sin(ga)*120,
+        val: 12, isGold: true, popTime: 0.1, life: 35, rot: Math.random()*TAU
+      });
+    }
+    addText(m.x, m.y - 18, 'PLASMA GEODE DETONATED!', '#ffe066', 16);
+  } else if (m.type === 'nanite'){
+    for (var ni = 0; ni < 3; ni++){
+      var na = Math.random() * TAU, nd = rnd(15, 40);
+      G.orbs.push({
+        x: clamp(m.x + Math.cos(na)*nd, 40, ARENA-40),
+        y: clamp(m.y + Math.sin(na)*nd, 40, ARENA-40),
+        vx: Math.cos(na)*90, vy: Math.sin(na)*90,
+        val: 4, isNanite: true, popTime: 0.1, life: 35, rot: Math.random()*TAU
+      });
+    }
+    addText(m.x, m.y - 18, 'NANITE MATRIX RESTORED', '#3ddc97', 16);
+  } else {
+    var dropCount = 4 + Math.floor(Math.random() * 3);
+    for (var qi = 0; qi < dropCount; qi++){
+      var qa = Math.random() * TAU, qd = rnd(15, 50);
+      G.orbs.push({
+        x: clamp(m.x + Math.cos(qa)*qd, 40, ARENA-40),
+        y: clamp(m.y + Math.sin(qa)*qd, 40, ARENA-40),
+        vx: Math.cos(qa)*100, vy: Math.sin(qa)*100,
+        val: 3, popTime: 0.1, life: 30, rot: Math.random()*TAU
+      });
+    }
+    addText(m.x, m.y - 18, 'ENERGY QUARTZ HARVESTED', '#35f0ff', 16);
+  }
+}
+
+function updateMapFeatures(dt){
+  if (!G || !G.player) return;
+  var p = G.player;
+
+  // 1. Update Boost Rings
+  if (G.boostRings){
+    for (var bri = 0; bri < G.boostRings.length; bri++){
+      var br = G.boostRings[bri];
+      if (br.cd > 0) br.cd = Math.max(0, br.cd - dt);
+      var bdist = Math.hypot(p.x - br.x, p.y - br.y);
+      if (bdist < br.r && br.cd <= 0){
+        br.cd = 4.0;
+        p.vx = Math.cos(br.ang) * 640;
+        p.vy = Math.sin(br.ang) * 640;
+        p.hyperDrive = 3.0;
+        sound.boostGate ? sound.boostGate() : sound.dash();
+        shockwave(br.x, br.y, '#35f0ff', 160, 4);
+        burst(br.x, br.y, '#35f0ff', 25);
+        burst(br.x, br.y, '#ffffff', 15);
+        addText(p.x, p.y - 30, 'SLIPSTREAM HYPER-DRIVE!', '#35f0ff', 18);
+      }
+    }
+  }
+
+  // Hyper-drive flight effects & thermal burn
+  if (p.hyperDrive > 0){
+    p.hyperDrive = Math.max(0, p.hyperDrive - dt);
+    if (Math.random() < dt * 26){
+      var hx = p.x - Math.cos(p.aim) * (p.r + 8);
+      var hy = p.y - Math.sin(p.aim) * (p.r + 8);
+      burst(hx, hy, '#35f0ff', 2);
+      burst(hx, hy, '#ffe066', 1);
+    }
+    for (var ei = 0; ei < G.enemies.length; ei++){
+      var en = G.enemies[ei];
+      if (en.hp <= 0 || (en.isBoss && en.dormant)) continue;
+      if (Math.hypot(en.x - p.x, en.y - p.y) < p.r + en.r + 30){
+        en.hp -= 95 * dt; en.flash = 0.5;
+        if (en.hp <= 0) killEnemy(en, ei, false);
+      }
+    }
+  }
+
+  // 2. Update Quantum Wormholes
+  if (p.warpCd > 0) p.warpCd = Math.max(0, p.warpCd - dt);
+  if (G.wormholes){
+    for (var wi = 0; wi < G.wormholes.length; wi++){
+      var wh = G.wormholes[wi];
+      if (wh.cd > 0) wh.cd = Math.max(0, wh.cd - dt);
+      var wdist = Math.hypot(p.x - wh.x, p.y - wh.y);
+      if (wdist < wh.r * 2.8 && wdist > 35){
+        var pull = (1 - wdist / (wh.r * 2.8)) * 140 * dt;
+        p.vx += ((wh.x - p.x) / wdist) * pull;
+        p.vy += ((wh.y - p.y) / wdist) * pull;
+      }
+      if (wdist < 34 && wh.cd <= 0 && (!p.warpCd || p.warpCd <= 0)){
+        var partner = G.wormholes[wh.partnerIdx];
+        if (partner){
+          wh.cd = 4.5;
+          partner.cd = 4.5;
+          p.warpCd = 4.5;
+          p.x = partner.x + Math.cos(p.aim) * 45;
+          p.y = partner.y + Math.sin(p.aim) * 45;
+          p.inv = Math.max(p.inv, 1.5);
+          sound.quantumWarp ? sound.quantumWarp() : sound.bossDeath();
+          shockwave(wh.x, wh.y, wh.col, 220, 3);
+          shockwave(partner.x, partner.y, partner.col, 340, 5);
+          burst(partner.x, partner.y, partner.col, 40);
+          burst(partner.x, partner.y, '#ffffff', 25);
+          G.flash = Math.max(G.flash, 0.4);
+          G.shake = Math.min(24, G.shake + 12);
+          addText(p.x, p.y - 32, 'QUANTUM WARP // TRANSIT COMPLETE', wh.col, 20);
+        }
+      }
+    }
+  }
+
+  // 3. Update Derelict Salvage Pods
+  if (G.salvagePods){
+    for (var spi = 0; spi < G.salvagePods.length; spi++){
+      var sp = G.salvagePods[spi];
+      if (sp.cd > 0){
+        sp.cd = Math.max(0, sp.cd - dt);
+        if (sp.cd === 0) sp.looted = false;
+        continue;
+      }
+      var sdist = Math.hypot(p.x - sp.x, p.y - sp.y);
+      if (sdist < 115){
+        sp.progress += dt / sp.maxT;
+        if (Math.random() < dt * 8){
+          burst(sp.x + rnd(-15, 15), sp.y + rnd(-15, 15), sp.col, 2);
+        }
+        if (sp.progress >= 1.0){
+          sp.progress = 0;
+          sp.looted = true;
+          sp.cd = 75;
+          sound.salvage ? sound.salvage() : sound.levelUp();
+          burst(sp.x, sp.y, sp.col, 35);
+          burst(sp.x, sp.y, '#ffffff', 20);
+          shockwave(sp.x, sp.y, sp.col, 240, 4);
+          for (var sgi = 0; sgi < 5; sgi++){
+            var sga = (sgi / 5) * TAU + Math.random() * 0.4;
+            var sgd = rnd(30, 90);
+            G.orbs.push({
+              x: clamp(sp.x + Math.cos(sga)*sgd, 40, ARENA-40),
+              y: clamp(sp.y + Math.sin(sga)*sgd, 40, ARENA-40),
+              vx: Math.cos(sga) * 140, vy: Math.sin(sga) * 140,
+              val: 18, isGold: true, popTime: 0.12, life: 40, rot: Math.random()*TAU
+            });
+          }
+          if (p.maxShield > 0) p.shield = p.maxShield;
+          if (Math.random() < 0.25){
+            dropRandomSkillCore(sp.x, sp.y);
+          }
+          addText(sp.x, sp.y - 36, sp.name + ' SECURED!', sp.col, 22);
+          addText(sp.x, sp.y - 14, '+90 XP & SHIELD RECHARGE', '#ffffff', 14);
+        }
+      } else {
+        if (sp.progress > 0) sp.progress = Math.max(0, sp.progress - dt * 0.6);
+      }
+    }
+  }
+
+  // 4. Update Minerals (respawn timer & oscillation)
+  if (G.minerals){
+    for (var mii = 0; mii < G.minerals.length; mii++){
+      var mn = G.minerals[mii];
+      if (mn.flash > 0) mn.flash = Math.max(0, mn.flash - dt * 5);
+      if (mn.shake > 0) mn.shake = Math.max(0, mn.shake - dt * 25);
+      mn.rot += mn.vrot * dt;
+      if (mn.respawnTimer > 0){
+        mn.respawnTimer -= dt;
+        if (mn.respawnTimer <= 0){
+          mn.hp = mn.maxHp;
+          mn.x = 300 + Math.random() * (ARENA - 600);
+          mn.y = 300 + Math.random() * (ARENA - 600);
+          burst(mn.x, mn.y, mn.col, 16);
+          shockwave(mn.x, mn.y, mn.col, 60, 2);
+        }
+      }
+    }
+  }
+
+  // 5. Check Nebula Atmospheric Mutator
+  var currentNebula = null;
+  for (var ni = 0; ni < NEBULAE.length; ni++){
+    var neb = NEBULAE[ni];
+    var ndist = Math.hypot(p.x - neb.x, p.y - neb.y);
+    if (ndist < neb.r){
+      currentNebula = neb;
+      break;
+    }
+  }
+
+  if (currentNebula){
+    if (currentNebula.name === 'Void Violet Nebula'){
+      if (p.skills && p.skills.q && p.skills.q.cd > 0){
+        p.skills.q.cd = Math.max(0, p.skills.q.cd - dt * 0.35);
+      }
+    } else if (currentNebula.name === 'Emerald Cyan Rift'){
+      if (p.maxShield > 0 && p.shield < p.maxShield){
+        p.shield = Math.min(p.maxShield, p.shield + 12 * dt);
+      }
+    } else if (currentNebula.name === 'Perseus Deep Cyan'){
+      for (var pci = 0; pci < G.enemies.length; pci++){
+        var pen = G.enemies[pci];
+        if (Math.hypot(pen.x - currentNebula.x, pen.y - currentNebula.y) < currentNebula.r){
+          pen.cryoSlow = 0.25;
+        }
+      }
+    } else if (currentNebula.name === 'Amber Filament'){
+      p.vx *= (1 + 0.08 * dt);
+      p.vy *= (1 + 0.08 * dt);
+    }
+    if (G.activeZone !== currentNebula.name){
+      G.activeZone = currentNebula.name;
+      var subText = '';
+      if (currentNebula.name === 'Void Violet Nebula') subText = 'PSIONIC CONDUIT // SKILL COOLDOWN ACCELERATION +35%';
+      else if (currentNebula.name === 'Emerald Cyan Rift') subText = 'NANITE MIST // ACTIVE SHIELD MATRIX REGENERATION';
+      else if (currentNebula.name === 'Perseus Deep Cyan') subText = 'CRYO REGION // HOSTILE FLIGHT DAMPENING -25%';
+      else if (currentNebula.name === 'Crimson Veil') subText = 'PLASMA VEIL // WEAPON THERMAL OVERCHARGE ACTIVE';
+      else if (currentNebula.name === 'Core Apex Indigo') subText = 'GRAVITATIONAL ANOMALY // MAGNETIC SUCTION RADIUS x2';
+      else if (currentNebula.name === 'Amber Filament') subText = 'KINETIC FILAMENT // SUB-LIGHT THRUSTER SURGE +20%';
+      G.missionToast = { t: 3.5, title: 'ENTERING ' + currentNebula.name.toUpperCase(), sub: subText };
+    }
+  } else {
+    G.activeZone = null;
+  }
+}
+
+function drawBoostRing(br){
+  ctx.save();
+  ctx.translate(br.x, br.y);
+  ctx.rotate(br.ang);
+
+  var isReady = br.cd <= 0;
+  var col = isReady ? '#35f0ff' : 'rgba(100, 140, 170, 0.4)';
+  var glowCol = isReady ? '#35f0ff' : 'transparent';
+
+  ctx.strokeStyle = col;
+  ctx.lineWidth = isReady ? 2.5 : 1.5;
+  ctx.shadowColor = glowCol;
+  ctx.shadowBlur = isReady ? 14 : 0;
+  ctx.beginPath();
+  for (var hi = 0; hi < 6; hi++){
+    var ha = hi * (TAU / 6);
+    var hx = Math.cos(ha) * br.r, hy = Math.sin(ha) * br.r;
+    if (hi === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.strokeStyle = isReady ? '#ffffff' : 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 2.2;
+  for (var chv = -1; chv <= 1; chv++){
+    var chvX = chv * 12;
+    ctx.beginPath();
+    ctx.moveTo(chvX - 6, -12);
+    ctx.lineTo(chvX + 6, 0);
+    ctx.lineTo(chvX - 6, 12);
+    ctx.stroke();
+  }
+
+  if (!isReady){
+    ctx.strokeStyle = 'rgba(53, 240, 255, 0.6)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    var prog = 1 - (br.cd / 4.0);
+    ctx.arc(0, 0, br.r - 8, -Math.PI/2, -Math.PI/2 + TAU * prog);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawQuantumWormhole(wh){
+  ctx.save();
+  ctx.translate(wh.x, wh.y);
+
+  var isReady = wh.cd <= 0;
+  var col = wh.col || '#bf5af2';
+  var t = G.t;
+
+  var pulse = 0.8 + Math.sin(t * 5 + wh.x) * 0.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, wh.r * 1.5, 0, TAU);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.2;
+  ctx.globalAlpha = 0.25 * pulse;
+  ctx.stroke();
+
+  ctx.globalAlpha = isReady ? 0.85 : 0.4;
+  for (var s = 0; s < 3; s++){
+    var sAng = (s * (TAU / 3)) + t * 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, wh.r * (0.45 + s * 0.22), sAng, sAng + Math.PI * 0.9);
+    ctx.strokeStyle = s === 0 ? '#ffffff' : col;
+    ctx.lineWidth = 2.2;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = isReady ? 12 : 0;
+    ctx.stroke();
+  }
+
+  ctx.rotate(0.45 + t * 0.5);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, wh.r * 0.85, wh.r * 0.35, 0, 0, TAU);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2.4;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(0, 0, 16, 0, TAU);
+  ctx.fillStyle = '#04060d';
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.rotate(-(0.45 + t * 0.5));
+  ctx.font = 'bold 9px ui-monospace,monospace';
+  ctx.fillStyle = col;
+  ctx.textAlign = 'center';
+  ctx.fillText('WARP RIFT', 0, wh.r + 14);
+
+  ctx.restore();
+}
+
+function drawSalvagePod(sp){
+  ctx.save();
+  ctx.translate(sp.x, sp.y);
+
+  var isReady = sp.cd <= 0;
+  var col = isReady ? sp.col : '#556677';
+  var t = G.t;
+
+  if (isReady){
+    var pingR = ((t * 45) % 110);
+    var pingAlpha = Math.max(0, 1 - pingR / 110) * 0.45;
+    ctx.beginPath();
+    ctx.arc(0, 0, pingR, 0, TAU);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.2;
+    ctx.globalAlpha = pingAlpha;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.fillStyle = '#0a101d';
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.4;
+  for (var side = -1; side <= 1; side += 2){
+    var px = side * 22;
+    ctx.beginPath();
+    ctx.rect(px - 6, -14, 12, 28);
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(px - 6, -5); ctx.lineTo(px + 6, -5);
+    ctx.moveTo(px - 6, 5);  ctx.lineTo(px + 6, 5);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.stroke();
+    ctx.strokeStyle = col;
+  }
+
+  ctx.fillStyle = '#0e1828';
+  ctx.strokeStyle = isReady ? '#ffffff' : col;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, 0, TAU);
+  ctx.fill(); ctx.stroke();
+
+  var blink = Math.sin(t * 10) > 0;
+  ctx.fillStyle = isReady ? (blink ? '#ffffff' : col) : '#334455';
+  ctx.shadowColor = isReady ? col : 'transparent';
+  ctx.shadowBlur = isReady ? 10 : 0;
+  ctx.beginPath();
+  ctx.arc(0, 0, 5, 0, TAU);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  if (sp.progress > 0){
+    ctx.beginPath();
+    ctx.arc(0, 0, 36, -Math.PI/2, -Math.PI/2 + TAU * sp.progress);
+    ctx.strokeStyle = '#3ddc97';
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = '#3ddc97';
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 10px ui-monospace,monospace';
+    ctx.fillStyle = '#3ddc97';
+    ctx.fillText('EXTRACTING ' + Math.round(sp.progress * 100) + '%', 0, -42);
+  } else {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 9px ui-monospace,monospace';
+    ctx.fillStyle = isReady ? col : '#667788';
+    ctx.fillText(sp.name, 0, 26);
+  }
+
+  ctx.restore();
+}
+
+function drawMineral(m){
+  if (m.hp <= 0) return;
+  ctx.save();
+  var mx = m.x + (m.shake > 0 ? rnd(-m.shake, m.shake) : 0);
+  var my = m.y + (m.shake > 0 ? rnd(-m.shake, m.shake) : 0);
+  ctx.translate(mx, my);
+  ctx.rotate(m.rot);
+
+  var hpFrac = m.hp / m.maxHp;
+  var col = m.flash > 0 ? '#ffffff' : m.col;
+
+  ctx.fillStyle = '#080e18';
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.8;
+  ctx.shadowColor = col;
+  ctx.shadowBlur = m.flash > 0 ? 12 : 5;
+  ctx.beginPath();
+  for (var vi = 0; vi < m.verts.length; vi++){
+    var v = m.verts[vi];
+    if (vi === 0) ctx.moveTo(v.x, v.y);
+    else ctx.lineTo(v.x, v.y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = col;
+  ctx.globalAlpha = 0.35 + (1 - hpFrac) * 0.4;
+  ctx.beginPath();
+  for (var ci = 0; ci < m.verts.length; ci += 2){
+    var cv = m.verts[ci];
+    if (ci === 0) ctx.moveTo(cv.x * 0.5, cv.y * 0.5);
+    else ctx.lineTo(cv.x * 0.5, cv.y * 0.5);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  if (hpFrac < 0.75){
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(m.verts[1].x * 0.7, m.verts[1].y * 0.7);
+    if (hpFrac < 0.4){
+      ctx.moveTo(0, 0);
+      ctx.lineTo(m.verts[3].x * 0.7, m.verts[3].y * 0.7);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawMapFeatures(cx, cy){
+  if (!G) return;
+  var vw = W / ZOOM, vh = H / ZOOM;
+  var minX = cx - vw/2 - 140, maxX = cx + vw/2 + 140;
+  var minY = cy - vh/2 - 140, maxY = cy + vh/2 + 140;
+
+  // 1. Quantum Wormholes
+  if (G.wormholes){
+    for (var wi = 0; wi < G.wormholes.length; wi++){
+      var wh = G.wormholes[wi];
+      if (wh.x + wh.r*2 < minX || wh.x - wh.r*2 > maxX || wh.y + wh.r*2 < minY || wh.y - wh.r*2 > maxY) continue;
+      drawQuantumWormhole(wh);
+    }
+  }
+
+  // 2. Boost Rings
+  if (G.boostRings){
+    for (var bri = 0; bri < G.boostRings.length; bri++){
+      var br = G.boostRings[bri];
+      if (br.x + br.r*1.5 < minX || br.x - br.r*1.5 > maxX || br.y + br.r*1.5 < minY || br.y - br.r*1.5 > maxY) continue;
+      drawBoostRing(br);
+    }
+  }
+
+  // 3. Derelict Salvage Pods
+  if (G.salvagePods){
+    for (var spi = 0; spi < G.salvagePods.length; spi++){
+      var sp = G.salvagePods[spi];
+      if (sp.x + 130 < minX || sp.x - 130 > maxX || sp.y + 130 < minY || sp.y - 130 > maxY) continue;
+      drawSalvagePod(sp);
+    }
+  }
+
+  // 4. Destructible Crystalline Minerals
+  if (G.minerals){
+    for (var mi = 0; mi < G.minerals.length; mi++){
+      var mn = G.minerals[mi];
+      if (mn.hp <= 0) continue;
+      if (mn.x + mn.r < minX || mn.x - mn.r > maxX || mn.y + mn.r < minY || mn.y - mn.r > maxY) continue;
+      drawMineral(mn);
+    }
+  }
+}
+
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
@@ -926,6 +1527,59 @@ var sound = {
       o.start(now + i * 0.035);
       o.stop(now + i * 0.035 + 0.35);
     });
+  },
+
+  boostGate: function(){
+    var a = actx(); if (!a) return;
+    var now = (typeof a.currentTime === 'number') ? a.currentTime : 0;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(160, now);
+    o.frequency.exponentialRampToValueAtTime(920, now + 0.16);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(0.08, now + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    o.connect(g); g.connect(masterFilter || a.destination);
+    o.start(now); o.stop(now + 0.34);
+  },
+
+  salvage: function(){
+    var a = actx(); if (!a) return;
+    var now = (typeof a.currentTime === 'number') ? a.currentTime : 0;
+    [440, 554.37, 659.25, 880, 1108.73].forEach(function(freq, i){
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, now + i * 0.04);
+      g.gain.setValueAtTime(0.0001, now + i * 0.04);
+      g.gain.linearRampToValueAtTime(0.05, now + i * 0.04 + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.04 + 0.38);
+      o.connect(g); g.connect(masterFilter || a.destination);
+      o.start(now + i * 0.04); o.stop(now + i * 0.04 + 0.42);
+    });
+  },
+
+  quantumWarp: function(){
+    var a = actx(); if (!a) return;
+    var now = (typeof a.currentTime === 'number') ? a.currentTime : 0;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(95, now);
+    o.frequency.exponentialRampToValueAtTime(32, now + 0.38);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(0.12, now + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    o.connect(g); g.connect(masterFilter || a.destination);
+    o.start(now); o.stop(now + 0.48);
+
+    var o2 = a.createOscillator(), g2 = a.createGain();
+    o2.type = 'triangle';
+    o2.frequency.setValueAtTime(780, now);
+    o2.frequency.exponentialRampToValueAtTime(190, now + 0.28);
+    g2.gain.setValueAtTime(0.0001, now);
+    g2.gain.linearRampToValueAtTime(0.06, now + 0.01);
+    g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    o2.connect(g2); g2.connect(masterFilter || a.destination);
+    o2.start(now); o2.stop(now + 0.35);
   },
 
   skillNova: function(){
@@ -1909,6 +2563,7 @@ function newGame(){
     skillSwapCardQ: null, skillSwapCardSalvage: null, skillSwapCardRepair: null, skillSwapCardDiscard: null,
     buffTray: { active: false, animY: 1500, targetY: 1500, cards: [] },
     skillSwapTray: { active: false, animY: 1500, targetY: 1500 },
+    boostRings: [], wormholes: [], salvagePods: [], minerals: [], activeZone: null, zoneToastTimer: 0,
     player:{
       x:ARENA/2, y:ARENA/2, vx:0, vy:0, r:14, aim:0, recoil:0, muzzle:0,
       hp:120, maxhp:120, speed:255,
@@ -1922,6 +2577,8 @@ function newGame(){
       aimAssist: true,
       aimAssistBonus: 0,
       godMode: false,
+      hyperDrive: 0,
+      warpCd: 0,
       skills: {
         q: { skill: null, cd: 0, maxCd: 10, activeT: 0 }
       },
@@ -1947,6 +2604,7 @@ function newGame(){
       col: dustColors[i % dustColors.length]
     });
   }
+  if (typeof initMapFeatures === 'function') initMapFeatures();
 }
 newGame();
 
@@ -4899,6 +5557,7 @@ function update(dt){
   } else {
     var acc = Math.min(1, dt*14);
     var currentSpeed = isSkillActive('timewarp') ? p.speed * 1.38 : p.speed;
+    if (p.hyperDrive > 0) currentSpeed *= 1.7;
     p.vx += (mx*currentSpeed - p.vx) * acc;
     p.vy += (my*currentSpeed - p.vy) * acc;
     if (mx === 0 && my === 0 && Math.hypot(p.vx, p.vy) < 4){
@@ -4908,6 +5567,30 @@ function update(dt){
 
   p.x = clamp(p.x + p.vx*dt, 34, ARENA-34);
   p.y = clamp(p.y + p.vy*dt, 34, ARENA-34);
+
+  // Map exploration features update
+  if (typeof updateMapFeatures === 'function') updateMapFeatures(dt);
+
+  // Rebound / physical collision with intact crystalline minerals
+  if (G.minerals){
+    for (var mi = 0; mi < G.minerals.length; mi++){
+      var min = G.minerals[mi];
+      if (min.hp <= 0) continue;
+      var mDist = Math.hypot(p.x - min.x, p.y - min.y);
+      var minSep = p.r + min.r;
+      if (mDist < minSep && mDist > 0.001){
+        var pushOut = minSep - mDist;
+        var nx = (p.x - min.x) / mDist;
+        var ny = (p.y - min.y) / mDist;
+        p.x += nx * pushOut;
+        p.y += ny * pushOut;
+        p.vx = -p.vx * 0.4 + nx * 80;
+        p.vy = -p.vy * 0.4 + ny * 80;
+        min.flash = 0.12;
+        min.shake = 3;
+      }
+    }
+  }
   if (p.regen > 0) p.hp = Math.min(p.maxhp, p.hp + p.regen*dt);
   if (p.maxShield && p.maxShield > 0){
     p.shieldRegenTimer = (p.shieldRegenTimer || 0) - dt;
@@ -5295,6 +5978,21 @@ function update(dt){
         }
       }
     }
+    if (!dead && G.minerals){
+      for (var mi = 0; mi < G.minerals.length; mi++){
+        var min = G.minerals[mi];
+        if (min.hp <= 0) continue;
+        var mDistSq = (min.x - b.x)*(min.x - b.x) + (min.y - b.y)*(min.y - b.y);
+        var hitR = min.r + b.r;
+        if (mDistSq < hitR * hitR){
+          var dmg = b.dmg * (b.crit ? (b.critMult || 2.5) : 1);
+          hitMineral(min, dmg, b.crit);
+          addText(min.x + rnd(-8, 8), min.y - min.r - 4, '' + Math.round(dmg), b.crit ? '#ffe066' : min.col, b.crit ? 16 : 11);
+          dead = true;
+          break;
+        }
+      }
+    }
     if (dead) G.bullets.splice(bi, 1);
   }
 
@@ -5302,6 +6000,26 @@ function update(dt){
   for (var qi = G.ebullets.length - 1; qi >= 0; qi--){
     var eb = G.ebullets[qi];
     eb.x += eb.vx*ebulletDt; eb.y += eb.vy*ebulletDt; eb.life -= ebulletDt;
+
+    // Cover mechanics: minerals absorb hostile bullets and protect player
+    if (G.minerals){
+      var absorbed = false;
+      for (var mi = 0; mi < G.minerals.length; mi++){
+        var min = G.minerals[mi];
+        if (min.hp <= 0) continue;
+        var edistSq = (min.x - eb.x)*(min.x - eb.x) + (min.y - eb.y)*(min.y - eb.y);
+        var eHitR = min.r + eb.r;
+        if (edistSq < eHitR * eHitR){
+          hitMineral(min, eb.dmg * 0.6, false);
+          burst(eb.x, eb.y, min.col, 4);
+          G.ebullets.splice(qi, 1);
+          absorbed = true;
+          break;
+        }
+      }
+      if (absorbed) continue;
+    }
+
     var barrierActive = isSkillActive('barrier');
     var hitRadius = barrierActive ? p.r + 26 : p.r;
     var r2 = eb.r + hitRadius;
@@ -5353,17 +6071,26 @@ function update(dt){
 
     if (od < 32 || Math.hypot(p.x - o.x, p.y - o.y) < p.r + 16){
       G.orbs.splice(oi, 1);
-      addXP(o.val);
-      if (o.isGold){
-        burst(o.x, o.y, '#ffe066', 15);
-        burst(o.x, o.y, '#ffffff', 8);
-        shockwave(o.x, o.y, '#ffe066', 70, 2);
-        addText(o.x, o.y - 18, '+' + o.val + ' XP', '#ffe066', 16);
-        if (sound.goldOrb) sound.goldOrb();
+      if (o.isNanite){
+        p.hp = Math.min(p.maxhp, p.hp + 20);
+        addText(p.x, p.y - 28, '+20 HP NANITE REPAIR', '#3ddc97', 16);
+        burst(p.x, p.y, '#3ddc97', 12);
+        shockwave(p.x, p.y, '#3ddc97', 60, 2);
+        if (sound.heal) sound.heal();
         else sound.orb();
       } else {
-        burst(o.x, o.y, '#b388ff', 4);
-        sound.orb();
+        addXP(o.val);
+        if (o.isGold){
+          burst(o.x, o.y, '#ffe066', 15);
+          burst(o.x, o.y, '#ffffff', 8);
+          shockwave(o.x, o.y, '#ffe066', 70, 2);
+          addText(o.x, o.y - 18, '+' + o.val + ' XP', '#ffe066', 16);
+          if (sound.goldOrb) sound.goldOrb();
+          else sound.orb();
+        } else {
+          burst(o.x, o.y, '#b388ff', 4);
+          sound.orb();
+        }
       }
     } else if (o.life !== undefined && o.life <= 0){
       G.orbs.splice(oi, 1);
@@ -8319,6 +9046,9 @@ function render(){
   /* Map Textures: Asteroids, Cyber Conduits & Tech Decals */
   drawMapTextures(G.camX, G.camY);
 
+  /* Interactive Map Features: Boost Rings, Wormholes, Salvage Pods & Crystalline Asteroids */
+  if (typeof drawMapFeatures === 'function') drawMapFeatures(G.camX, G.camY);
+
   /* Cosmic Space Dust Motes (Subtle count with luminous glowing aura) */
   for (var d = 0; d < G.dust.length; d++){
     var du = G.dust[d];
@@ -9642,6 +10372,49 @@ function drawMinimap(){
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.strokeRect(mx + pad, my + pad, innerW, innerH);
 
+  // Interactive Map POIs on minimap
+  if (G.boostRings){
+    ctx.strokeStyle = '#35f0ff'; ctx.lineWidth = 1;
+    for (var bri = 0; bri < G.boostRings.length; bri++){
+      var br = G.boostRings[bri];
+      var bx = mx + pad + br.x * scale;
+      var by = my + pad + br.y * scale;
+      ctx.beginPath(); ctx.arc(bx, by, 2.2, 0, TAU); ctx.stroke();
+    }
+  }
+
+  if (G.wormholes){
+    for (var whi = 0; whi < G.wormholes.length; whi++){
+      var wh = G.wormholes[whi];
+      var wx = mx + pad + wh.x * scale;
+      var wy = my + pad + wh.y * scale;
+      ctx.fillStyle = wh.col;
+      ctx.beginPath(); ctx.arc(wx, wy, 2.4, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  if (G.salvagePods){
+    for (var spi = 0; spi < G.salvagePods.length; spi++){
+      var sp = G.salvagePods[spi];
+      var spx = mx + pad + sp.x * scale;
+      var spy = my + pad + sp.y * scale;
+      ctx.fillStyle = sp.looted ? 'rgba(120, 140, 160, 0.4)' : sp.col;
+      ctx.fillRect(spx - 1.8, spy - 1.8, 3.6, 3.6);
+    }
+  }
+
+  if (G.minerals){
+    for (var mii = 0; mii < G.minerals.length; mii++){
+      var mn = G.minerals[mii];
+      if (mn.hp <= 0) continue;
+      var mnx = mx + pad + mn.x * scale;
+      var mny = my + pad + mn.y * scale;
+      ctx.fillStyle = mn.col;
+      ctx.fillRect(mnx - 0.8, mny - 0.8, 1.6, 1.6);
+    }
+  }
+
   // Entities on minimap
   if (G.skillCores){
     for (var sci = 0; sci < G.skillCores.length; sci++){
@@ -9752,6 +10525,27 @@ function drawOffscreenIndicators(){
       var sk = sc.skill || (sc.skillId && ACTIVE_SKILLS[sc.skillId]) || null;
       var skName = sk ? sk.name : 'SKILL CORE';
       renderPointer(sc.x, sc.y, sk ? sk.col : '#35f0ff', '[E] ' + skName);
+    }
+  }
+
+  if (G.salvagePods){
+    for (var spi = 0; spi < G.salvagePods.length; spi++){
+      var sp = G.salvagePods[spi];
+      if (sp.looted) continue;
+      var sdist = Math.hypot(sp.x - p.x, sp.y - p.y);
+      if (sdist <= 1500){
+        renderPointer(sp.x, sp.y, sp.col, sp.name);
+      }
+    }
+  }
+
+  if (G.wormholes){
+    for (var whi = 0; whi < G.wormholes.length; whi++){
+      var wh = G.wormholes[whi];
+      var wdist = Math.hypot(wh.x - p.x, wh.y - p.y);
+      if (wdist <= 1100){
+        renderPointer(wh.x, wh.y, wh.col, 'WARP ' + wh.id);
+      }
     }
   }
 
@@ -12067,6 +12861,7 @@ function drawTitle(){
   drawCosmicBackground(ARENA/2, ARENA/2, false);
   drawGrid(0, 0, false);
   drawMapTextures(ARENA/2, ARENA/2);
+  if (typeof drawMapFeatures === 'function') drawMapFeatures(ARENA/2, ARENA/2);
   ctx.globalCompositeOperation = 'lighter';
   for (var i = 0; i < G.parts.length; i++){
     var pt = G.parts[i];
