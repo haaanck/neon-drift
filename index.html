@@ -941,7 +941,7 @@ function actx(){
 
       masterGain = AC.createGain();
       if (masterGain.gain && masterGain.gain.setValueAtTime) {
-        masterGain.gain.setValueAtTime(0.65, now);
+        masterGain.gain.setValueAtTime(audioMuted ? 0 : 0.65, now);
       }
 
       masterFilter.connect(masterGain);
@@ -950,6 +950,27 @@ function actx(){
   }
   if (AC && AC.state === 'suspended' && AC.resume) AC.resume();
   return AC;
+}
+
+var audioMuted = false;
+function toggleAudioMute(){
+  audioMuted = !audioMuted;
+  var a = actx();
+  if (a && masterGain && masterGain.gain){
+    var now = (typeof a.currentTime === 'number') ? a.currentTime : 0;
+    try {
+      if (masterGain.gain.setValueAtTime){
+        masterGain.gain.setValueAtTime(audioMuted ? 0 : 0.65, now);
+      } else {
+        masterGain.gain.value = audioMuted ? 0 : 0.65;
+      }
+    } catch(e){}
+  }
+  if (!audioMuted && sound && sound.choose) sound.choose();
+  if (G && typeof addText === 'function' && G.player){
+    addText(G.player.x, G.player.y - 45, audioMuted ? 'AUDIO MUTED [M]' : 'AUDIO ACTIVE [M]', audioMuted ? '#ff4d6d' : '#3ddc97', 16);
+  }
+  return audioMuted;
 }
 
 /* ================= PROCEDURAL SPACE MUSIC ENGINE ================= */
@@ -1962,6 +1983,50 @@ var sound = {
     g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     o.connect(g); g.connect(masterFilter || a.destination);
     o.start(now); o.stop(now + 0.13);
+  },
+
+  _lastHoverT: 0,
+  hover: function(){
+    if (audioMuted) return;
+    var a = actx(); if (!a) return;
+    var now = (typeof a.currentTime === 'number') ? a.currentTime : 0;
+    if (now - this._lastHoverT < 0.08) return;
+    this._lastHoverT = now;
+    try {
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(680, now);
+      o.frequency.exponentialRampToValueAtTime(920, now + 0.035);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.linearRampToValueAtTime(0.025, now + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+      o.connect(g); g.connect(masterFilter || a.destination);
+      o.start(now); o.stop(now + 0.045);
+    } catch(e){}
+  },
+
+  _lastLockT: 0,
+  lock: function(){
+    if (audioMuted) return;
+    var a = actx(); if (!a) return;
+    var now = (typeof a.currentTime === 'number') ? a.currentTime : 0;
+    if (now - this._lastLockT < 0.20) return;
+    this._lastLockT = now;
+    try {
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(1180, now);
+      o.frequency.exponentialRampToValueAtTime(1580, now + 0.035);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.linearRampToValueAtTime(0.035, now + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+      o.connect(g); g.connect(masterFilter || a.destination);
+      o.start(now); o.stop(now + 0.05);
+    } catch(e){}
+  },
+
+  toggleMute: function(){
+    return toggleAudioMute();
   }
 };
 if (typeof window !== 'undefined') window.sound = sound;
@@ -2811,6 +2876,11 @@ window.addEventListener('keydown', function(e){
     }
   }
 
+  if (k === 'm'){
+    toggleAudioMute();
+    return;
+  }
+
   if (G.buffTray && G.buffTray.active){
     var code = e.code || '';
     if (k === '1' || k === '&' || code === 'Digit1' || code === 'Numpad1') { chooseBuff(0); return; }
@@ -2870,7 +2940,11 @@ window.addEventListener('keydown', function(e){
       return;
     }
   }
-  else if (G.state === 'dead' && (k === 'r' || k === ' ' || k === 'enter')) startGame();
+  else if (G.state === 'dead'){
+    if (k === 'h'){ goToTitle(); return; }
+    if (k === 'x'){ enterTrainingRoom(); return; }
+    if (k === 'r' || k === ' ' || k === 'enter') startGame();
+  }
   else if (G.state === 'levelup'){
     if (k === '1' || k === 'numpad1') choose(0);
     else if (k === '2' || k === 'numpad2') choose(1);
@@ -2976,6 +3050,13 @@ function handleUiClick(cx, cy){
       }
     }
 
+    if (G.titleAudioRect){
+      var tar = G.titleAudioRect;
+      if (cx >= tar.x && cx <= tar.x + tar.w && cy >= tar.y && cy <= tar.y + tar.h){
+        toggleAudioMute();
+        return true;
+      }
+    }
     if (G.titleTrainingRect){
       var ttr = G.titleTrainingRect;
       if (cx >= ttr.x && cx <= ttr.x + ttr.w && cy >= ttr.y && cy <= ttr.y + ttr.h){
@@ -3016,7 +3097,20 @@ function handleUiClick(cx, cy){
     startGame();
     return true;
   }
-  if (G.state === 'dead'){ startGame(); return true; }
+  if (G.state === 'dead'){
+    if (G.deadHomeRect && cx >= G.deadHomeRect.x && cx <= G.deadHomeRect.x + G.deadHomeRect.w && cy >= G.deadHomeRect.y && cy <= G.deadHomeRect.y + G.deadHomeRect.h){
+      goToTitle();
+      sound.choose();
+      return true;
+    }
+    if (G.deadTrainingRect && cx >= G.deadTrainingRect.x && cx <= G.deadTrainingRect.x + G.deadTrainingRect.w && cy >= G.deadTrainingRect.y && cy <= G.deadTrainingRect.y + G.deadTrainingRect.h){
+      enterTrainingRoom();
+      sound.choose();
+      return true;
+    }
+    startGame();
+    return true;
+  }
   if (G.state === 'skill_swap' || (G.skillSwapTray && G.skillSwapTray.active)){
     if (G.skillSwapCardQ){
       var sq = G.skillSwapCardQ;
@@ -3078,6 +3172,13 @@ function handleUiClick(cx, cy){
         return true;
       }
     }
+    if (G.pauseAudioRect){
+      var par = G.pauseAudioRect;
+      if (cx >= par.x && cx <= par.x + par.w && cy >= par.y && cy <= par.y + par.h){
+        toggleAudioMute();
+        return true;
+      }
+    }
     return true;
   }
   if (G.state === 'levelup'){
@@ -3095,6 +3196,13 @@ function handleUiClick(cx, cy){
         tb.action();
         return true;
       }
+    }
+  }
+  if (G.state === 'play' && G.hudAudioRect){
+    var ha = G.hudAudioRect;
+    if (cx >= ha.x && cx <= ha.x + ha.w && cy >= ha.y && cy <= ha.y + ha.h){
+      toggleAudioMute();
+      return true;
     }
   }
   if (G.state === 'play' && G.hudGodModeRect){
@@ -3125,6 +3233,96 @@ function handleUiClick(cx, cy){
   return false;
 }
 
+function inRect(x, y, r){
+  return !!(r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+}
+
+function updateCursor(){
+  if (!cvs || !cvs.style) return;
+  var isInteractive = false;
+  var mx = mouse.x, my = mouse.y;
+  if (!mouse.active){
+    cvs.style.cursor = (G && G.state === 'play') ? 'crosshair' : 'default';
+    return;
+  }
+
+  if (G){
+    if (G.state === 'title'){
+      if (inRect(mx, my, G.titleStartRect) ||
+          inRect(mx, my, G.titleTrainingRect) ||
+          inRect(mx, my, G.titleNameRect) ||
+          inRect(mx, my, G.titleGodModeBadgeRect) ||
+          inRect(mx, my, G.titleAudioRect)){
+        isInteractive = true;
+      }
+    } else if (G.state === 'pause'){
+      if (inRect(mx, my, G.pauseResumeRect) ||
+          inRect(mx, my, G.pauseRestartRect) ||
+          inRect(mx, my, G.pauseHomeRect) ||
+          inRect(mx, my, G.pauseTrainingRect) ||
+          inRect(mx, my, G.pauseGodModeRect) ||
+          inRect(mx, my, G.pauseAudioRect)){
+        isInteractive = true;
+      }
+    } else if (G.state === 'dead'){
+      if (inRect(mx, my, G.deadRestartRect) ||
+          inRect(mx, my, G.deadHomeRect) ||
+          inRect(mx, my, G.deadTrainingRect)){
+        isInteractive = true;
+      }
+    } else if (G.state === 'victory'){
+      if (G.victoryButtons && G.victoryButtons.length){
+        for (var vi = 0; vi < G.victoryButtons.length; vi++){
+          if (inRect(mx, my, G.victoryButtons[vi].rect)){ isInteractive = true; break; }
+        }
+      }
+    } else if (G.state === 'skill_swap'){
+      if (inRect(mx, my, G.skillSwapCardQ) ||
+          inRect(mx, my, G.skillSwapCardSalvage) ||
+          inRect(mx, my, G.skillSwapCardDiscard) ||
+          inRect(mx, my, G.skillSwapCardRepair)){
+        isInteractive = true;
+      }
+    } else if (G.state === 'levelup'){
+      if (G.cards && G.cards.length){
+        for (var ci = 0; ci < G.cards.length; ci++){
+          if (inRect(mx, my, G.cards[ci].rect)){ isInteractive = true; break; }
+        }
+      }
+    } else if (G.state === 'play'){
+      if (G.buffTray && G.buffTray.active && G.buffTray.cards){
+        for (var bi = 0; bi < G.buffTray.cards.length; bi++){
+          if (inRect(mx, my, G.buffTray.cards[bi].rect)){ isInteractive = true; break; }
+        }
+      }
+      if (G.skillSwapTray && G.skillSwapTray.active){
+        if (inRect(mx, my, G.skillSwapCardQ) ||
+            inRect(mx, my, G.skillSwapCardSalvage) ||
+            inRect(mx, my, G.skillSwapCardDiscard) ||
+            inRect(mx, my, G.skillSwapCardRepair)){
+          isInteractive = true;
+        }
+      }
+      if (G.mode === 'training' && G.trainingButtons && G.trainingButtons.length){
+        for (var ti = 0; ti < G.trainingButtons.length; ti++){
+          if (inRect(mx, my, G.trainingButtons[ti])){ isInteractive = true; break; }
+        }
+      }
+      if (inRect(mx, my, G.pauseBtnRect)) isInteractive = true;
+      if (inRect(mx, my, G.hudGodModeRect)) isInteractive = true;
+      if (inRect(mx, my, G.hudAudioRect)) isInteractive = true;
+      if (inRect(mx, my, G.skillRectQ)) isInteractive = true;
+    } else if (G.state === 'godmode'){
+      if (G.godModeButtons && G.godModeButtons.length){
+        for (var gi = 0; gi < G.godModeButtons.length; gi++){
+          if (inRect(mx, my, G.godModeButtons[gi])){ isInteractive = true; break; }
+        }
+      }
+    }
+  }
+  cvs.style.cursor = isInteractive ? 'pointer' : (G && G.state === 'play' ? 'crosshair' : 'default');
+}
+
 var touch = { active:false, x:0, y:0 };
 cvs.addEventListener('touchstart', function(e){
   e.preventDefault(); actx();
@@ -3147,6 +3345,7 @@ window.addEventListener('mousemove', function(e){
   mouse.x = e.clientX;
   mouse.y = e.clientY;
   mouse.active = true;
+  updateCursor();
 });
 window.addEventListener('mousedown', function(e){
   actx();
@@ -6543,6 +6742,39 @@ function drawIcon(name, x, y, s, col){
       ctx.beginPath(); ctx.arc(0, 0, h * 0.15, 0, TAU); ctx.fill();
       ctx.beginPath(); ctx.moveTo(0, -h); ctx.lineTo(0, h); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-h, 0); ctx.lineTo(h, 0); ctx.stroke();
+      break;
+    case 'audio':
+    case 'speaker':
+      ctx.beginPath();
+      ctx.moveTo(-h*0.5, -h*0.35);
+      ctx.lineTo(-h*0.1, -h*0.35);
+      ctx.lineTo(h*0.3, -h*0.75);
+      ctx.lineTo(h*0.3, h*0.75);
+      ctx.lineTo(-h*0.1, h*0.35);
+      ctx.lineTo(-h*0.5, h*0.35);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(h*0.3, 0, h*0.5, -Math.PI*0.3, Math.PI*0.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(h*0.3, 0, h*0.8, -Math.PI*0.35, Math.PI*0.35);
+      ctx.stroke();
+      break;
+    case 'mute':
+      ctx.beginPath();
+      ctx.moveTo(-h*0.5, -h*0.35);
+      ctx.lineTo(-h*0.1, -h*0.35);
+      ctx.lineTo(h*0.3, -h*0.75);
+      ctx.lineTo(h*0.3, h*0.75);
+      ctx.lineTo(-h*0.1, h*0.35);
+      ctx.lineTo(-h*0.5, h*0.35);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(h*0.45, -h*0.35); ctx.lineTo(h*0.85, h*0.35);
+      ctx.moveTo(h*0.85, -h*0.35); ctx.lineTo(h*0.45, h*0.35);
+      ctx.stroke();
       break;
   }
   ctx.restore();
@@ -10244,6 +10476,26 @@ function drawPlayer(){
     ctx.lineWidth = 1.5; ctx.stroke();
   }
 
+  /* Low-Hull Tactical Hazard Pulse (Peripheral Vision Warning) */
+  if (p.hp / p.maxhp < 0.35 && G.state === 'play'){
+    ctx.save();
+    var warnPulse = 0.45 + Math.sin(G.t * 12) * 0.35;
+    ctx.strokeStyle = 'rgba(255, 77, 109, ' + warnPulse + ')';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 1.85 + Math.sin(G.t * 8) * 2, 0, TAU);
+    ctx.stroke();
+    for (var hti = 0; hti < 3; hti++){
+      var hta = G.t * 4 + hti * (TAU / 3);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 2.1, hta - 0.25, hta + 0.25);
+      ctx.strokeStyle = 'rgba(255, 77, 109, ' + (warnPulse * 1.2) + ')';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   /* god mode divine aura */
   if (p.godMode){
     ctx.save();
@@ -11173,28 +11425,99 @@ function render(){
   var isFiring = G.playerFiring;
   var tgt = G.aimAssistTarget;
 
-  if (tgt && isFiring){
+  if (tgt && isFiring && tgt.hp > 0 && !tgt.dead){
+    if (tgt !== G._lastAimAssistTgt){
+      G._lastAimAssistTgt = tgt;
+      if (sound && sound.lock) sound.lock();
+    }
     // Lock-on crosshair target ring on tracked hostile
-    ctx.beginPath(); ctx.arc(tgt.x, tgt.y, tgt.r + 8, 0, TAU);
-    ctx.strokeStyle = 'rgba(53,240,255,0.85)';
+    ctx.save();
+    ctx.beginPath(); ctx.arc(tgt.x, tgt.y, tgt.r + 9, 0, TAU);
+    ctx.strokeStyle = 'rgba(53, 240, 255, 0.9)';
     ctx.lineWidth = 1.8;
     ctx.stroke();
+
+    // Rotating holographic targeting chevrons
     for (var lk = 0; lk < 4; lk++){
       var la = lk * (TAU/4) + G.t * 3;
       ctx.beginPath();
       ctx.moveTo(tgt.x + Math.cos(la)*(tgt.r+5), tgt.y + Math.sin(la)*(tgt.r+5));
-      ctx.lineTo(tgt.x + Math.cos(la)*(tgt.r+13), tgt.y + Math.sin(la)*(tgt.r+13));
+      ctx.lineTo(tgt.x + Math.cos(la)*(tgt.r+14), tgt.y + Math.sin(la)*(tgt.r+14));
+      ctx.strokeStyle = '#ffe066';
+      ctx.lineWidth = 2;
       ctx.stroke();
     }
+
+    // Outer framing brackets
+    var oR = tgt.r + 14;
+    for (var bi = 0; bi < 4; bi++){
+      var ba = bi * (TAU/4) + Math.PI/4 - G.t * 1.5;
+      ctx.beginPath();
+      ctx.arc(tgt.x, tgt.y, oR, ba - 0.25, ba + 0.25);
+      ctx.strokeStyle = 'rgba(53, 240, 255, 0.5)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+
+    // Direct Collinear Targeting Laser with Glowing Core
+    var muzzleX = p.x + Math.cos(p.aim)*p.r*1.6;
+    var muzzleY = p.y + Math.sin(p.aim)*p.r*1.6;
+
     ctx.beginPath();
-    ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
+    ctx.moveTo(muzzleX, muzzleY);
     ctx.lineTo(tgt.x, tgt.y);
-    ctx.strokeStyle = 'rgba(53,240,255,0.45)'; ctx.lineWidth = 1.6; ctx.stroke();
-  } else if (isFiring){
+    ctx.strokeStyle = 'rgba(53, 240, 255, 0.25)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
     ctx.beginPath();
-    ctx.moveTo(p.x + Math.cos(p.aim)*p.r*1.6, p.y + Math.sin(p.aim)*p.r*1.6);
-    ctx.lineTo(p.x + Math.cos(p.aim)*450, p.y + Math.sin(p.aim)*450);
-    ctx.strokeStyle = 'rgba(53,240,255,0.30)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.moveTo(muzzleX, muzzleY);
+    ctx.lineTo(tgt.x, tgt.y);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Lock Telemetry Distance Pill
+    var lockDist = Math.round(Math.hypot(tgt.x - p.x, tgt.y - p.y));
+    ctx.font = 'bold 9px ui-monospace,monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffe066';
+    ctx.strokeStyle = 'rgba(5, 6, 14, 0.9)';
+    ctx.lineWidth = 2.5;
+    ctx.strokeText('LOCK ' + lockDist + 'm', tgt.x, tgt.y - tgt.r - 12);
+    ctx.fillText('LOCK ' + lockDist + 'm', tgt.x, tgt.y - tgt.r - 12);
+    ctx.restore();
+  } else if (isFiring){
+    G._lastAimAssistTgt = null;
+    var muzzleX = p.x + Math.cos(p.aim)*p.r*1.6;
+    var muzzleY = p.y + Math.sin(p.aim)*p.r*1.6;
+    var tipX = p.x + Math.cos(p.aim)*480;
+    var tipY = p.y + Math.sin(p.aim)*480;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(muzzleX, muzzleY);
+    ctx.lineTo(tipX, tipY);
+    ctx.strokeStyle = 'rgba(53, 240, 255, 0.20)';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(muzzleX, muzzleY);
+    ctx.lineTo(tipX, tipY);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Reticle terminus indicator
+    ctx.beginPath();
+    ctx.arc(tipX, tipY, 4, 0, TAU);
+    ctx.strokeStyle = '#35f0ff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    G._lastAimAssistTgt = null;
   }
 
   drawPlayer();
@@ -11767,6 +12090,7 @@ function render(){
   if (G.state === 'dead') drawDead();
   if (G.state === 'victory') drawVictory();
   if (G.state === 'godmode') drawGodModeModal();
+  updateCursor();
 }
 
 function drawMinimap(){
@@ -12667,63 +12991,137 @@ function drawHUD(){
   }
 
   /* Cyber-Cockpit Status Console (Top Left) */
-  var bw = Math.min(310, W * 0.45);
-  var hpc = p.hp < 35 ? '#ff4d6d' : '#35f0ff';
+  var bw = Math.min(310, W * 0.44);
+  var bh = (p.maxShield > 0) ? 96 : 82;
+  var bx0 = 16, by0 = 16;
+  var lowHull = (p.hp / p.maxhp < 0.35);
+  var hpc = lowHull ? '#ff4d6d' : (p.hp / p.maxhp < 0.6 ? '#ffe066' : '#35f0ff');
 
-  // HP Bar
-  drawIcon('heart', 28, 27, 14, hpc);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fillRect(42, 20, bw - 22, 14);
-  ctx.fillStyle = hpc;
-  ctx.fillRect(42, 20, (bw - 22) * clamp(p.hp/p.maxhp, 0, 1), 14);
-  if (p.shield && p.shield > 0 && p.maxShield > 0){
-    ctx.fillStyle = '#00f5d4';
-    ctx.fillRect(42, 31, (bw - 22) * clamp(p.shield / p.maxShield, 0, 1), 3);
+  ctx.save();
+  // Glassmorphic cockpit backing panel
+  ctx.fillStyle = 'rgba(6, 11, 24, 0.90)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx0, by0, bw, bh, 8);
+  else ctx.rect(bx0, by0, bw, bh);
+  ctx.fill();
+
+  // Low hull warning pulsating border
+  var cockPulse = lowHull ? 0.6 + Math.sin(G.t * 10) * 0.35 : 0.4;
+  ctx.strokeStyle = lowHull ? ('rgba(255, 77, 109, ' + cockPulse + ')') : 'rgba(53, 240, 255, ' + cockPulse + ')';
+  ctx.lineWidth = lowHull ? 2 : 1.2;
+  ctx.stroke();
+
+  // Corner tech brackets
+  ctx.strokeStyle = lowHull ? '#ff4d6d' : '#ffe066';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(bx0, by0 + 6); ctx.lineTo(bx0, by0); ctx.lineTo(bx0 + 6, by0);
+  ctx.moveTo(bx0 + bw - 6, by0); ctx.lineTo(bx0 + bw, by0); ctx.lineTo(bx0 + bw, by0 + 6);
+  ctx.stroke();
+
+  // 1. Hull HP Bar with gradient and ticks
+  var barX = bx0 + 36, barY = by0 + 10, barW = bw - 48, barH = 13;
+  drawIcon('heart', bx0 + 20, barY + barH/2, 13, hpc);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.fillRect(barX, barY, barW, barH);
+
+  var hpFrac = clamp(p.hp / p.maxhp, 0, 1);
+  var hpGrad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
+  if (lowHull){
+    hpGrad.addColorStop(0, '#ff4d6d'); hpGrad.addColorStop(1, '#ff0055');
+  } else if (hpFrac < 0.6){
+    hpGrad.addColorStop(0, '#ffe066'); hpGrad.addColorStop(1, '#ff9f1c');
+  } else {
+    hpGrad.addColorStop(0, '#35f0ff'); hpGrad.addColorStop(1, '#3ddc97');
   }
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
-  ctx.strokeRect(42.5, 20.5, bw - 22, 14);
-  /* hp tick marks */
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillStyle = hpGrad;
+  ctx.fillRect(barX, barY, barW * hpFrac, barH);
+
+  // Border & ticks
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)'; ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
   for (var t = 1; t < 5; t++){
     ctx.beginPath();
-    ctx.moveTo(42 + (bw - 22)*(t/5), 20); ctx.lineTo(42 + (bw - 22)*(t/5), 34);
+    ctx.moveTo(barX + barW * (t/5), barY); ctx.lineTo(barX + barW * (t/5), barY + barH);
     ctx.stroke();
   }
 
-  // XP Bar
-  drawIcon('chip', 28, 45, 12, '#b388ff');
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fillRect(42, 42, bw - 22, 7);
-  ctx.fillStyle = '#b388ff';
-  ctx.fillRect(42, 42, (bw - 22) * (p.xp/p.xpNext), 7);
+  // Hull numeric text
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 10px ui-monospace,monospace';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(Math.ceil(p.hp) + '/' + p.maxhp + ' HP', barX + barW - 6, barY + 10);
 
-  // Digital telemetry text
-  ctx.font = 'bold 11px ui-monospace,monospace';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#9fb6c8';
-  ctx.fillText('HP ' + Math.ceil(p.hp) + '/' + p.maxhp + (p.maxShield > 0 ? (' [SHIELD ' + Math.ceil(p.shield) + ']') : ''), 20, 62);
-  if (p.godMode){
-    drawIcon('shield', 140, 58, 12, '#ffe066');
-    ctx.fillStyle = '#ffe066';
-    ctx.fillText('IMMORTAL', 152, 62);
-  }
-  ctx.fillText('LV ' + p.lvl, 20, 78);
-  var xOffset = 60;
+  var curSubY = barY + barH + 4;
+
+  // 2. Dedicated Shield Bar (if active)
   if (p.maxShield > 0){
-    ctx.fillStyle = '#00f5d4';
-    ctx.fillText('[SHIELD ' + Math.ceil(p.shield) + ']', xOffset, 78);
-    xOffset += 92;
-  }
-  drawIcon('reticle', xOffset + 6, 74, 11, '#35f0ff');
-  ctx.fillStyle = '#35f0ff';
-  ctx.fillText('AIM ASSIST', xOffset + 16, 78);
+    var shBarH = 6;
+    drawIcon('shield', bx0 + 20, curSubY + shBarH/2, 11, '#00f5d4');
+    ctx.fillStyle = 'rgba(0, 245, 212, 0.12)';
+    ctx.fillRect(barX, curSubY, barW, shBarH);
+    var shFrac = clamp((p.shield || 0) / p.maxShield, 0, 1);
+    var shGrad = ctx.createLinearGradient(barX, curSubY, barX + barW, curSubY);
+    shGrad.addColorStop(0, '#00f5d4'); shGrad.addColorStop(1, '#7dffcf');
+    ctx.fillStyle = shGrad;
+    ctx.fillRect(barX, curSubY, barW * shFrac, shBarH);
+    ctx.strokeStyle = 'rgba(0, 245, 212, 0.4)'; ctx.lineWidth = 0.8;
+    ctx.strokeRect(barX, curSubY, barW, shBarH);
 
-  // Top-Right Control Bar (Pause & Debug)
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 8px ui-monospace,monospace';
+    ctx.fillStyle = '#00f5d4';
+    ctx.fillText('SHIELD ' + Math.ceil(p.shield || 0) + '/' + p.maxShield, barX + barW - 6, curSubY + 5);
+
+    curSubY += shBarH + 4;
+  }
+
+  // 3. EXP Progression Bar (Restored & Enhanced)
+  var xpBarH = 6;
+  drawIcon('chip', bx0 + 20, curSubY + xpBarH/2, 11, '#b388ff');
+  ctx.fillStyle = 'rgba(179, 136, 255, 0.12)';
+  ctx.fillRect(barX, curSubY, barW, xpBarH);
+  var xpFrac = clamp((p.xp || 0) / (p.xpNext || 1), 0, 1);
+  var xpGrad = ctx.createLinearGradient(barX, curSubY, barX + barW, curSubY);
+  xpGrad.addColorStop(0, '#9d4edd'); xpGrad.addColorStop(1, '#c77dff');
+  ctx.fillStyle = xpGrad;
+  ctx.fillRect(barX, curSubY, barW * xpFrac, xpBarH);
+  ctx.strokeStyle = 'rgba(179, 136, 255, 0.4)'; ctx.lineWidth = 0.8;
+  ctx.strokeRect(barX, curSubY, barW, xpBarH);
+
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 8px ui-monospace,monospace';
+  ctx.fillStyle = '#c77dff';
+  ctx.fillText('XP ' + Math.floor(p.xp || 0) + '/' + p.xpNext, barX + barW - 6, curSubY + 5);
+
+  curSubY += xpBarH + 5;
+
+  // 4. Telemetry status badges (Level, Aim Assist, God Mode)
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 10px ui-monospace,monospace';
+  ctx.fillStyle = '#b388ff';
+  ctx.fillText('LV ' + p.lvl, bx0 + 12, curSubY + 10);
+
+  drawIcon('reticle', bx0 + 64, curSubY + 6, 10, '#35f0ff');
+  ctx.fillStyle = '#35f0ff';
+  ctx.fillText('AIM ASSIST', bx0 + 74, curSubY + 10);
+
+  if (p.godMode){
+    drawIcon('shield', bx0 + 162, curSubY + 6, 10, '#ffe066');
+    ctx.fillStyle = '#ffe066';
+    ctx.fillText('GODMODE', bx0 + 172, curSubY + 10);
+  }
+  ctx.restore();
+
+  // Top-Right Control Bar: Pause [P], Audio Mute [M], Debug [G]
   var pbW = 34, pbH = 28;
   var pbX = W - pbW - 16, pbY = 16;
   G.pauseBtnRect = { x: pbX, y: pbY, w: pbW, h: pbH };
 
   var isPbHover = mouse.active && mouse.x >= pbX && mouse.x <= pbX + pbW && mouse.y >= pbY && mouse.y <= pbY + pbH;
+  ctx.save();
   ctx.fillStyle = isPbHover ? 'rgba(53, 240, 255, 0.25)' : 'rgba(5, 6, 14, 0.85)';
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(pbX, pbY, pbW, pbH, 5);
@@ -12737,11 +13135,29 @@ function drawHUD(){
   ctx.fillStyle = isPbHover ? '#ffffff' : '#35f0ff';
   ctx.fillRect(pbX + 11, pbY + 8, 3, 12);
   ctx.fillRect(pbX + 20, pbY + 8, 3, 12);
+  ctx.restore();
+
+  // Audio Toggle Pill Button [M]
+  var haW = 34, haH = 28;
+  var haX = pbX - haW - 8, haY = 16;
+  G.hudAudioRect = { x: haX, y: haY, w: haW, h: haH };
+  var isHaHover = mouse.active && mouse.x >= haX && mouse.x <= haX + haW && mouse.y >= haY && mouse.y <= haY + haH;
+  ctx.save();
+  ctx.fillStyle = isHaHover ? 'rgba(53, 240, 255, 0.25)' : 'rgba(5, 6, 14, 0.85)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(haX, haY, haW, haH, 5);
+  else ctx.rect(haX, haY, haW, haH);
+  ctx.fill();
+  ctx.strokeStyle = isHaHover ? '#ffffff' : (audioMuted ? '#ff4d6d' : 'rgba(53, 240, 255, 0.55)');
+  ctx.lineWidth = isHaHover ? 1.5 : 1;
+  ctx.stroke();
+  drawIcon(audioMuted ? 'mute' : 'audio', haX + 17, haY + 14, 13, isHaHover ? '#ffffff' : (audioMuted ? '#ff4d6d' : '#35f0ff'));
+  ctx.restore();
 
   // God Mode HUD Access Pill
   if (G.godModeUnlocked){
     var gHudW = 92, gHudH = 28;
-    var gHudX = pbX - gHudW - 8, gHudY = 16;
+    var gHudX = haX - gHudW - 8, gHudY = 16;
     G.hudGodModeRect = { x: gHudX, y: gHudY, w: gHudW, h: gHudH };
     var isHoverG = mouse.active && mouse.x >= gHudX && mouse.x <= gHudX + gHudW && mouse.y >= gHudY && mouse.y <= gHudY + gHudH;
     ctx.save();
@@ -12761,7 +13177,7 @@ function drawHUD(){
   }
 
   // Top-Right Mission Telemetry Console
-  var trW = 136, trH = 68;
+  var trW = 140, trH = 68;
   var trX = W - trW - 16, trY = 52;
   ctx.save();
   ctx.fillStyle = 'rgba(7, 11, 22, 0.88)';
@@ -12786,24 +13202,26 @@ function drawHUD(){
   ctx.fillStyle = '#9fb6c8';
   ctx.fillText('PURGED ' + G.kills, trX + trW - 12, trY + 38);
 
-  var dashReady = (p.dashT <= 0);
+  var dashReady = (!p.dashT || p.dashT <= 0);
   drawIcon('dash', trX + 16, trY + 52, 11, dashReady ? '#35f0ff' : '#657e92');
   ctx.font = 'bold 10px ui-monospace,monospace';
   ctx.fillStyle = dashReady ? '#35f0ff' : '#657e92';
-  ctx.fillText(dashReady ? 'DASH READY' : 'DASH ' + p.dashT.toFixed(1) + 's', trX + trW - 12, trY + 56);
+  ctx.fillText(dashReady ? 'DASH READY' : 'DASH ' + (p.dashT || 0).toFixed(1) + 's', trX + trW - 12, trY + 56);
   ctx.restore();
 
   /* streak */
   if (G.streak > 2){
-    drawIcon('flame', 30, 114, 18, '#ffe066');
+    var streakCol = G.streak >= 20 ? '#35f0ff' : (G.streak >= 15 ? '#b388ff' : (G.streak >= 10 ? '#ff4d6d' : (G.streak >= 5 ? '#ff9f1c' : '#ffe066')));
+    var streakTitle = G.streak >= 20 ? 'APEX GODLIKE' : (G.streak >= 15 ? 'RAMPAGE' : (G.streak >= 10 ? 'ULTRA KILL' : (G.streak >= 5 ? 'MEGA KILL' : 'COMBO')));
+    drawIcon('flame', 30, 114, 18, streakCol);
     ctx.textAlign = 'left';
     ctx.font = 'bold 24px ui-monospace,monospace';
-    ctx.fillStyle = '#ffe066';
+    ctx.fillStyle = streakCol;
     ctx.globalAlpha = Math.min(1, G.streakT);
     ctx.fillText('x' + G.streak, 44, 118);
     ctx.font = 'bold 10px ui-monospace,monospace';
     ctx.fillStyle = '#9fb6c8';
-    ctx.fillText('STREAK', 44, 130);
+    ctx.fillText(streakTitle, 44, 130);
     ctx.globalAlpha = 1;
   }
 
@@ -12988,11 +13406,16 @@ function drawPause(){
   ctx.fillStyle = isHmHover ? '#ffffff' : '#829bb0';
   ctx.fillText('PRESS [H]', hmX + btnW / 2, btnY + 35);
 
-  // Row 2: Secondary Training Room button
+  // Row 2: Secondary Training Room button & Audio Mute Toggle
   var trnY = btnY + btnH + 10;
-  var trnW = cw - 80;
+  var trnGap = 10;
+  var audioW = 140;
+  var trnW = cw - 80 - audioW - trnGap;
   var trnX = cx0 + 40;
+  var audioX = trnX + trnW + trnGap;
   G.pauseTrainingRect = { x: trnX, y: trnY, w: trnW, h: 34 };
+  G.pauseAudioRect = { x: audioX, y: trnY, w: audioW, h: 34 };
+
   var isTrnHover = mouse.active && mouse.x >= trnX && mouse.x <= trnX + trnW && mouse.y >= trnY && mouse.y <= trnY + 34;
   ctx.fillStyle = isTrnHover ? 'rgba(157, 78, 221, 0.35)' : 'rgba(157, 78, 221, 0.14)';
   ctx.beginPath();
@@ -13003,19 +13426,38 @@ function drawPause(){
   ctx.lineWidth = isTrnHover ? 2 : 1.2;
   ctx.stroke();
 
-  drawIcon('target', trnX + trnW / 2 - 120, trnY + 17, 12, isTrnHover ? '#ffffff' : '#c77dff');
+  drawIcon('target', trnX + trnW / 2 - 96, trnY + 17, 12, isTrnHover ? '#ffffff' : '#c77dff');
   ctx.textAlign = 'center';
-  ctx.font = 'bold 12px ui-monospace,monospace';
+  ctx.font = 'bold 11px ui-monospace,monospace';
   ctx.fillStyle = isTrnHover ? '#ffffff' : '#c77dff';
-  ctx.fillText('TRAINING SIMULATION MATRIX [X]', trnX + trnW / 2 + 6, trnY + 21);
+  ctx.fillText('TRAINING MATRIX [X]', trnX + trnW / 2 + 8, trnY + 21);
+
+  // Audio Toggle Button
+  var isAudHover = mouse.active && mouse.x >= audioX && mouse.x <= audioX + audioW && mouse.y >= trnY && mouse.y <= trnY + 34;
+  var audCol = audioMuted ? '#ff4d6d' : '#3ddc97';
+  ctx.fillStyle = isAudHover ? (audioMuted ? 'rgba(255, 77, 109, 0.32)' : 'rgba(61, 220, 151, 0.32)') : (audioMuted ? 'rgba(255, 77, 109, 0.12)' : 'rgba(61, 220, 151, 0.12)');
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(audioX, trnY, audioW, 34, 6);
+  else ctx.rect(audioX, trnY, audioW, 34);
+  ctx.fill();
+  ctx.strokeStyle = isAudHover ? '#ffffff' : audCol;
+  ctx.lineWidth = isAudHover ? 2 : 1.2;
+  ctx.stroke();
+
+  drawIcon(audioMuted ? 'mute' : 'audio', audioX + 22, trnY + 17, 12, isAudHover ? '#ffffff' : audCol);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 11px ui-monospace,monospace';
+  ctx.fillStyle = isAudHover ? '#ffffff' : audCol;
+  ctx.fillText(audioMuted ? 'MUTED [M]' : 'AUDIO [M]', audioX + audioW / 2 + 8, trnY + 21);
 
   // Row 3: God Mode Button (if unlocked)
+  var isGodHover = false;
   if (G.godModeUnlocked){
     var godY = trnY + 34 + 8;
     var godW = cw - 80;
     var godX = cx0 + 40;
     G.pauseGodModeRect = { x: godX, y: godY, w: godW, h: 30 };
-    var isGodHover = mouse.active && mouse.x >= godX && mouse.x <= godX + godW && mouse.y >= godY && mouse.y <= godY + 30;
+    isGodHover = mouse.active && mouse.x >= godX && mouse.x <= godX + godW && mouse.y >= godY && mouse.y <= godY + 30;
     ctx.fillStyle = isGodHover ? 'rgba(255, 224, 102, 0.35)' : 'rgba(255, 224, 102, 0.15)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(godX, godY, godW, 30, 6);
@@ -13030,6 +13472,17 @@ function drawPause(){
     ctx.font = 'bold 11px ui-monospace,monospace';
     ctx.fillStyle = isGodHover ? '#ffffff' : '#ffe066';
     ctx.fillText('DEBUG KERNEL STAT MANIPULATOR [G]', godX + godW / 2 + 8, godY + 19);
+  }
+
+  // Tactile pause menu hover chime (distinct button tracking)
+  var curPauseHoverId = isResHover ? 'res' : (isRstHover ? 'rst' : (isHmHover ? 'home' : (isTrnHover ? 'trn' : (isAudHover ? 'aud' : (isGodHover ? 'god' : null)))));
+  if (curPauseHoverId){
+    if (G._lastPauseHoverId !== curPauseHoverId){
+      G._lastPauseHoverId = curPauseHoverId;
+      if (sound && sound.hover) sound.hover();
+    }
+  } else {
+    G._lastPauseHoverId = null;
   }
 
   // Controls Quick Hint Bar
@@ -13084,18 +13537,31 @@ function drawBuffTray(){
     c.rect = { x: cx, y: cardY, w: cw, h: ch };
 
     var isHover = (mouse && mouse.active && mouse.x >= cx && mouse.x <= cx + cw && mouse.y >= cardY && mouse.y <= cardY + ch);
-    if (isHover) hoveredCard = c;
+    if (isHover){
+      hoveredCard = c;
+      if (G._lastHoverBuffCard !== i){
+        G._lastHoverBuffCard = i;
+        if (sound && sound.hover) sound.hover();
+      }
+    }
     var isSkill = c.u.isSkill || false;
     var themeCol = isSkill ? '#b388ff' : '#35f0ff';
+    var drawY = isHover ? cardY - 4 : cardY;
 
     ctx.save();
 
     // 1. Sleek compact glass fill
-    ctx.fillStyle = isHover ? 'rgba(25, 45, 75, 0.70)' : 'rgba(8, 16, 30, 0.48)';
+    ctx.fillStyle = isHover ? 'rgba(25, 45, 75, 0.75)' : 'rgba(8, 16, 30, 0.48)';
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(cx, cardY, cw, ch, 6);
-    else ctx.rect(cx, cardY, cw, ch);
+    if (ctx.roundRect) ctx.roundRect(cx, drawY, cw, ch, 6);
+    else ctx.rect(cx, drawY, cw, ch);
     ctx.fill();
+
+    // Subtle gloss edge
+    if (isHover){
+      ctx.fillStyle = 'rgba(255, 224, 102, 0.35)';
+      ctx.fillRect(cx + 6, drawY + 1, cw - 12, 1);
+    }
 
     // 2. High-glow border
     ctx.strokeStyle = isHover ? '#ffe066' : (isSkill ? 'rgba(179, 136, 255, 0.85)' : 'rgba(53, 240, 255, 0.75)');
@@ -13107,7 +13573,7 @@ function drawBuffTray(){
 
     // 3. Keycap Badge [1], [2], [3] (Left side)
     var badgeW = 24, badgeH = 22;
-    var badgeX = cx + 8, badgeY = cardY + (ch - badgeH) / 2;
+    var badgeX = cx + 8, badgeY = drawY + (ch - badgeH) / 2;
     ctx.fillStyle = isHover ? '#ffe066' : 'rgba(255, 224, 102, 0.18)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
@@ -13122,7 +13588,7 @@ function drawBuffTray(){
     ctx.fillText('[' + (i + 1) + ']', badgeX + badgeW / 2, badgeY + 15);
 
     // 4. Vector Icon
-    var iconX = cx + 44, iconY = cardY + ch / 2;
+    var iconX = cx + 44, iconY = drawY + ch / 2;
     drawIcon(c.u.icon, iconX, iconY, 16, isHover ? '#ffe066' : themeCol);
 
     // 5. Clear One-Word Name (strictly single word, zero description on card)
@@ -13130,11 +13596,11 @@ function drawBuffTray(){
     ctx.font = 'bold 11px ui-monospace,monospace';
     ctx.fillStyle = isHover ? '#ffe066' : '#ffffff';
     var displayName = (c.u.isSkill ? c.u.name : (c.u.name.split(' ')[0] || c.u.name)).toUpperCase();
-    ctx.fillText(displayName, cx + 58, cardY + 27);
+    ctx.fillText(displayName, cx + 58, drawY + 27);
 
     // 6. Category pill badge (Right side: BUFF or SKILL)
     var catW = 42, catH = 18;
-    var catX = cx + cw - catW - 8, catY = cardY + (ch - catH) / 2;
+    var catX = cx + cw - catW - 8, catY = drawY + (ch - catH) / 2;
     ctx.fillStyle = isSkill ? 'rgba(179, 136, 255, 0.22)' : 'rgba(53, 240, 255, 0.18)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(catX, catY, catW, catH, 3);
@@ -13150,6 +13616,8 @@ function drawBuffTray(){
 
     ctx.restore();
   }
+
+  if (!hoveredCard) G._lastHoverBuffCard = -1;
 
   // Floating Description Tooltip (Rendered ONLY when player hovers on a buff/skill)
   if (hoveredCard && hoveredCard.u && hoveredCard.u.desc){
@@ -13210,13 +13678,23 @@ function drawCards(){
   var total = cw*3 + gap*2;
   var x0 = (W - total)/2, y0 = H*0.35;
 
+  var anyCardHover = false;
   for (var i = 0; i < G.cards.length; i++){
     var c = G.cards[i];
     var x = x0 + i*(cw + gap);
     c.rect = { x:x, y:y0, w:cw, h:ch };
 
+    var isHover = (mouse && mouse.active && mouse.x >= x && mouse.x <= x + cw && mouse.y >= y0 && mouse.y <= y0 + ch);
+    if (isHover){
+      anyCardHover = true;
+      if (G._lastHoverLevelCard !== i){
+        G._lastHoverLevelCard = i;
+        if (sound && sound.hover) sound.hover();
+      }
+    }
+
     var pop = 1 - Math.pow(1 - c.born, 3);
-    var oy = (1 - pop) * 40;
+    var oy = (1 - pop) * 40 - (isHover ? 6 : 0);
 
     ctx.save();
     ctx.translate(x + cw/2, y0 + oy + ch/2);
@@ -13224,10 +13702,16 @@ function drawCards(){
     ctx.globalAlpha = pop;
     ctx.translate(-cw/2, -ch/2);
 
-    ctx.fillStyle = 'rgba(53,240,255,0.06)';
+    ctx.fillStyle = isHover ? 'rgba(53, 240, 255, 0.16)' : 'rgba(53, 240, 255, 0.06)';
     ctx.fillRect(0, 0, cw, ch);
-    ctx.strokeStyle = 'rgba(53,240,255,0.9)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = isHover ? '#ffe066' : 'rgba(53, 240, 255, 0.9)';
+    ctx.lineWidth = isHover ? 2.5 : 2;
+    if (isHover){
+      ctx.shadowColor = '#ffe066';
+      ctx.shadowBlur = 14;
+    }
     ctx.strokeRect(1, 1, cw - 2, ch - 2);
+    ctx.shadowBlur = 0;
 
     /* corner ticks */
     ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 3;
@@ -13266,6 +13750,7 @@ function drawCards(){
     ctx.fillText(line.trim(), cw/2, ly);
     ctx.restore();
   }
+  if (!anyCardHover) G._lastHoverLevelCard = -1;
   ctx.globalAlpha = 1;
   ctx.textAlign = 'center';
 }
@@ -13304,6 +13789,63 @@ function drawVictory(){
   ctx.font = 'bold 10px ui-monospace,monospace';
   ctx.fillStyle = '#ffe066';
   ctx.fillText('TIME ' + timeStr + '   KILLS ' + G.kills + '   STREAK x' + G.best + '   HULL LV ' + (p ? p.lvl : 1), W/2, 38);
+
+  // Mission Debrief Summary Card (Active when victory animation stabilizes at t >= 2.5)
+  if ((G.victoryTimer || 0) >= 2.5 && !G.victoryDismissed){
+    var vcw = Math.min(480, W * 0.88);
+    var vch = 186;
+    var vcx = (W - vcw) / 2;
+    var vcy = (H - vch) / 2 - 24;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(6, 12, 22, 0.92)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(vcx, vcy, vcw, vch, 8);
+    else ctx.rect(vcx, vcy, vcw, vch);
+    ctx.fill();
+
+    var vpPulse = 0.6 + Math.sin(G.t * 3) * 0.3;
+    ctx.strokeStyle = 'rgba(61, 220, 151, ' + vpPulse + ')';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    drawIcon('trophy', W / 2 - 140, vcy + 28, 14, '#ffe066');
+    drawIcon('trophy', W / 2 + 140, vcy + 28, 14, '#ffe066');
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px ui-monospace,monospace';
+    ctx.fillStyle = '#3ddc97';
+    ctx.shadowColor = '#3ddc97';
+    ctx.shadowBlur = 10;
+    ctx.fillText('MISSION COMPLETE // DEBRIEF', W / 2, vcy + 32);
+    ctx.shadowBlur = 0;
+
+    var vicRank = (G.t < 180 ? 'RANK S+ // APEX ACE' : (G.best >= 25 ? 'RANK S // MASTER' : 'RANK A // VETERAN'));
+    ctx.font = 'bold 11px ui-monospace,monospace';
+    ctx.fillStyle = '#ffe066';
+    ctx.fillText(vicRank, W / 2, vcy + 52);
+
+    ctx.strokeStyle = 'rgba(61, 220, 151, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(vcx + 20, vcy + 64);
+    ctx.lineTo(vcx + vcw - 20, vcy + 64);
+    ctx.stroke();
+
+    ctx.font = '11px ui-monospace,monospace';
+    ctx.fillStyle = '#9fb6c8';
+    ctx.fillText('MISSION DURATION: ' + timeStr + '    HOSTILES PURGED: ' + G.kills, W / 2, vcy + 88);
+    ctx.fillText('PEAK COMBAT STREAK: x' + G.best + '    FINAL HULL: LV ' + (p ? p.lvl : 1), W / 2, vcy + 108);
+
+    ctx.fillStyle = '#3ddc97';
+    ctx.font = 'bold 10px ui-monospace,monospace';
+    ctx.fillText('SECTOR ANOMALY PURGED  •  CORE SYSTEMS STABILIZED', W / 2, vcy + 134);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px ui-monospace,monospace';
+    ctx.fillText('PRESS [SPACE] TO RE-ENGAGE CORE OR SELECT BELOW', W / 2, vcy + 158);
+    ctx.restore();
+  }
 
   // Floating bottom action buttons (Sleek HUD buttons, zero blocking modal)
   var btnW = 155, btnH = 42, gap = 16;
@@ -13390,7 +13932,7 @@ function drawDead(){
   ctx.fillRect(0, 0, W, H);
 
   var cw = Math.min(520, W * 0.92);
-  var ch = 410;
+  var ch = 430;
   var cx0 = (W - cw) / 2;
   var cy0 = (H - ch) / 2;
 
@@ -13473,31 +14015,50 @@ function drawDead(){
   drawDeadStat('chip',      col1, statY + 56, 'FINAL HULL LEVEL', 'LV ' + G.player.lvl, '#3ddc97');
   drawDeadStat('trophy',    col2, statY + 56, 'BEST RUN LEVEL', 'LV ' + (HIGH_SCORE.level || G.player.lvl || 1), '#ffe066');
 
+  // Combat Evaluation Performance Grade
+  var evalGrade = (G.kills >= 100 || G.best >= 30) ? 'GRADE S // APEX ACE' : (G.kills >= 60 || G.best >= 20) ? 'GRADE A // ELITE' : (G.kills >= 30 || G.best >= 10) ? 'GRADE B // VETERAN' : 'GRADE C // CADET';
+  var evalCol = (G.kills >= 100 || G.best >= 30) ? '#ffe066' : (G.kills >= 60 || G.best >= 20) ? '#35f0ff' : (G.kills >= 30 || G.best >= 10) ? '#3ddc97' : '#9fb6c8';
+  var grW = cw - 80, grH = 22, grX = cx0 + 40, grY = cy0 + 214;
+  ctx.fillStyle = 'rgba(25, 35, 55, 0.55)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(grX, grY, grW, grH, 4);
+  else ctx.rect(grX, grY, grW, grH);
+  ctx.fill();
+  ctx.strokeStyle = evalCol;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  drawIcon('flame', W/2 - 130, grY + 11, 10, evalCol);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 10px ui-monospace,monospace';
+  ctx.fillStyle = evalCol;
+  ctx.fillText('COMBAT RATING: ' + evalGrade, W/2 + 6, grY + 15);
+
   // High score record capsule
-  var recY = cy0 + 224;
+  var recY = cy0 + 242;
   var recW = cw - 80;
   var recX = cx0 + 40;
   ctx.fillStyle = 'rgba(255, 224, 102, 0.08)';
   ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(recX, recY, recW, 36, 6);
-  else ctx.rect(recX, recY, recW, 36);
+  if (ctx.roundRect) ctx.roundRect(recX, recY, recW, 28, 6);
+  else ctx.rect(recX, recY, recW, 28);
   ctx.fill();
   ctx.strokeStyle = 'rgba(255, 224, 102, 0.35)';
   ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  drawIcon('trophy', W/2 - 170, recY + 18, 13, '#ffe066');
+  drawIcon('trophy', W/2 - 170, recY + 14, 11, '#ffe066');
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffe066';
-  ctx.font = 'bold 11px ui-monospace,monospace';
-  ctx.fillText('RECORD: LV ' + (HIGH_SCORE.level || G.player.lvl || 1) + '  •  ' + HIGH_SCORE.kills + ' KILLS  •  PEAK x' + HIGH_SCORE.streak + ' STREAK', W/2 + 8, recY + 22);
+  ctx.font = 'bold 10px ui-monospace,monospace';
+  ctx.fillText('RECORD: LV ' + (HIGH_SCORE.level || G.player.lvl || 1) + '  •  ' + HIGH_SCORE.kills + ' KILLS  •  PEAK x' + HIGH_SCORE.streak + ' STREAK', W/2 + 8, recY + 18);
 
-  // Restart prompt button pod
-  var rstBtnY = cy0 + 284;
+  // Primary Restart Button Pod
+  var rstBtnY = cy0 + 278;
   var rstBtnW = cw - 80;
   var rstBtnX = cx0 + 40;
-  var rstBtnH = 46;
+  var rstBtnH = 40;
 
+  G.deadRestartRect = { x: rstBtnX, y: rstBtnY, w: rstBtnW, h: rstBtnH };
   var isHoverRst = mouse && mouse.active && mouse.x >= rstBtnX && mouse.x <= rstBtnX + rstBtnW && mouse.y >= rstBtnY && mouse.y <= rstBtnY + rstBtnH;
   ctx.fillStyle = isHoverRst ? 'rgba(53, 240, 255, 0.28)' : 'rgba(53, 240, 255, 0.12)';
   ctx.beginPath();
@@ -13508,16 +14069,69 @@ function drawDead(){
   ctx.lineWidth = isHoverRst ? 2.2 : 1.5;
   ctx.stroke();
 
-  drawIcon('restart', W/2 - 130, rstBtnY + 23, 14, isHoverRst ? '#ffffff' : '#35f0ff');
+  drawIcon('restart', W/2 - 120, rstBtnY + 20, 13, isHoverRst ? '#ffffff' : '#35f0ff');
   ctx.textAlign = 'center';
-  ctx.font = 'bold 14px ui-monospace,monospace';
+  ctx.font = 'bold 13px ui-monospace,monospace';
   ctx.fillStyle = isHoverRst ? '#ffffff' : '#35f0ff';
-  ctx.fillText('RE-ENGAGE CORE [SPACE / R]', W/2 + 10, rstBtnY + 28);
+  ctx.fillText('RE-ENGAGE CORE [SPACE / R]', W/2 + 10, rstBtnY + 25);
+
+  // Secondary Buttons Row: HOME [H] & TRAINING [X]
+  var secBtnY = rstBtnY + rstBtnH + 8;
+  var secGap = 10;
+  var secBtnW = (rstBtnW - secGap) / 2;
+  var secBtnH = 34;
+
+  // Home Button
+  var deadHmX = rstBtnX;
+  G.deadHomeRect = { x: deadHmX, y: secBtnY, w: secBtnW, h: secBtnH };
+  var isHoverDeadHm = mouse && mouse.active && mouse.x >= deadHmX && mouse.x <= deadHmX + secBtnW && mouse.y >= secBtnY && mouse.y <= secBtnY + secBtnH;
+  ctx.fillStyle = isHoverDeadHm ? 'rgba(255, 77, 109, 0.28)' : 'rgba(255, 77, 109, 0.10)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(deadHmX, secBtnY, secBtnW, secBtnH, 6);
+  else ctx.rect(deadHmX, secBtnY, secBtnW, secBtnH);
+  ctx.fill();
+  ctx.strokeStyle = isHoverDeadHm ? '#ffffff' : '#ff4d6d';
+  ctx.lineWidth = isHoverDeadHm ? 2 : 1.2;
+  ctx.stroke();
+  drawIcon('home', deadHmX + secBtnW/2 - 44, secBtnY + 17, 12, isHoverDeadHm ? '#ffffff' : '#ff4d6d');
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 11px ui-monospace,monospace';
+  ctx.fillStyle = isHoverDeadHm ? '#ffffff' : '#ff4d6d';
+  ctx.fillText('HOME [H]', deadHmX + secBtnW/2 + 8, secBtnY + 21);
+
+  // Training Button
+  var deadTrnX = deadHmX + secBtnW + secGap;
+  G.deadTrainingRect = { x: deadTrnX, y: secBtnY, w: secBtnW, h: secBtnH };
+  var isHoverDeadTrn = mouse && mouse.active && mouse.x >= deadTrnX && mouse.x <= deadTrnX + secBtnW && mouse.y >= secBtnY && mouse.y <= secBtnY + secBtnH;
+  ctx.fillStyle = isHoverDeadTrn ? 'rgba(157, 78, 221, 0.28)' : 'rgba(157, 78, 221, 0.10)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(deadTrnX, secBtnY, secBtnW, secBtnH, 6);
+  else ctx.rect(deadTrnX, secBtnY, secBtnW, secBtnH);
+  ctx.fill();
+  ctx.strokeStyle = isHoverDeadTrn ? '#ffffff' : '#c77dff';
+  ctx.lineWidth = isHoverDeadTrn ? 2 : 1.2;
+  ctx.stroke();
+  drawIcon('target', deadTrnX + secBtnW/2 - 56, secBtnY + 17, 12, isHoverDeadTrn ? '#ffffff' : '#c77dff');
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 11px ui-monospace,monospace';
+  ctx.fillStyle = isHoverDeadTrn ? '#ffffff' : '#c77dff';
+  ctx.fillText('TRAINING [X]', deadTrnX + secBtnW/2 + 8, secBtnY + 21);
+
+  // Tactile death menu hover chime (distinct button tracking)
+  var curDeadHoverId = isHoverRst ? 'rst' : (isHoverDeadHm ? 'home' : (isHoverDeadTrn ? 'trn' : null));
+  if (curDeadHoverId){
+    if (G._lastDeadHoverId !== curDeadHoverId){
+      G._lastDeadHoverId = curDeadHoverId;
+      if (sound && sound.hover) sound.hover();
+    }
+  } else {
+    G._lastDeadHoverId = null;
+  }
 
   // Bottom hint
   ctx.font = '10px ui-monospace,monospace';
   ctx.fillStyle = '#678195';
-  ctx.fillText('PRESS SPACE OR CLICK BUTTON TO INITIATE NEW RUN', W/2, cy0 + ch - 22);
+  ctx.fillText('PRESS [SPACE] OR [R] TO RETRY  •  [H] HOME  •  [X] TRAINING', W/2, cy0 + ch - 16);
 
   ctx.restore();
 }
@@ -14251,6 +14865,35 @@ function drawTitle(){
   // Bounding rect for game title to register 3 clicks
   G.titleNameRect = { x: W/2 - 240, y: H*0.38 - 55, w: 480, h: 75 };
 
+  // Version Subtitle Tag
+  ctx.save();
+  ctx.font = 'bold 11px ui-monospace,monospace';
+  ctx.fillStyle = 'rgba(53, 240, 255, 0.7)';
+  ctx.fillText('v2.4 APEX EDITION', W/2, H*0.38 + 18);
+  ctx.restore();
+
+  // Audio Status Toggle Pill in Top-Right
+  var titleAudW = 126, titleAudH = 30;
+  var titleAudX = W - titleAudW - 20, titleAudY = 16;
+  G.titleAudioRect = { x: titleAudX, y: titleAudY, w: titleAudW, h: titleAudH };
+  var isTitleAudHover = mouse.active && mouse.x >= titleAudX && mouse.x <= titleAudX + titleAudW && mouse.y >= titleAudY && mouse.y <= titleAudY + titleAudH;
+  var tAudCol = audioMuted ? '#ff4d6d' : '#35f0ff';
+  ctx.save();
+  ctx.fillStyle = isTitleAudHover ? 'rgba(25, 45, 75, 0.85)' : 'rgba(8, 16, 30, 0.6)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(titleAudX, titleAudY, titleAudW, titleAudH, 6);
+  else ctx.rect(titleAudX, titleAudY, titleAudW, titleAudH);
+  ctx.fill();
+  ctx.strokeStyle = isTitleAudHover ? '#ffffff' : tAudCol;
+  ctx.lineWidth = isTitleAudHover ? 2 : 1.2;
+  ctx.stroke();
+  drawIcon(audioMuted ? 'mute' : 'audio', titleAudX + 18, titleAudY + 15, 12, isTitleAudHover ? '#ffffff' : tAudCol);
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 10px ui-monospace,monospace';
+  ctx.fillStyle = isTitleAudHover ? '#ffffff' : tAudCol;
+  ctx.fillText(audioMuted ? 'MUTED [M]' : 'AUDIO [M]', titleAudX + 34, titleAudY + 19);
+  ctx.restore();
+
   // If unlocked, display golden badge to access God Mode anytime
   if (G.godModeUnlocked){
     var gbw = 420, gbh = 26;
@@ -14359,6 +15002,18 @@ function drawTitle(){
   ctx.fillStyle = isHoverTrn ? '#ffffff' : '#829bb0';
   ctx.fillText('CLICK OR PRESS [X]', trnX + 42, actY + 34);
   ctx.restore();
+
+  // Tactile title hover chime (distinct button tracking)
+  var curTitleHoverId = isHoverStart ? 'start' : (isHoverTrn ? 'trn' : (isTitleAudHover ? 'aud' : (isHoverGb ? 'god' : null)));
+  if (curTitleHoverId){
+    if (G._lastTitleHoverId !== curTitleHoverId){
+      G._lastTitleHoverId = curTitleHoverId;
+      if (sound && sound.hover) sound.hover();
+    }
+  } else {
+    G._lastTitleHoverId = null;
+  }
+  updateCursor();
 }
 
 var last = 0;
