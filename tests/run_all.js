@@ -14,7 +14,8 @@ const tests = [
   'test_scary_phase2.js',
   'test_training_room.js',
   'test_victory_boss_death_animation.js',
-  'test_map_exploration_pois.js'
+  'test_map_exploration_pois.js',
+  'test_egg_rework.js'
 ];
 
 let failed = 0;

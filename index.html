@@ -3698,6 +3698,10 @@ function spawnBoss(wNum, bossType, forceAwake){
     mandibleOpen: 0,
     dormant: isDormant,
     barrierRadius: 210,
+    barrierR: 210,
+    crackImpactFlash: 0,
+    crackPulse: 0,
+    lastHitAng: 0,
     pylonEnergyT: 0,
     caliperRot: 0,
     deflectionRipples: [],
@@ -3761,6 +3765,8 @@ function updateBoss(b, dt, p){
     b.phaseT += dt * 0.8;
     b.pylonEnergyT = (b.pylonEnergyT || 0) + dt * 1.5;
     b.caliperRot = (b.caliperRot || 0) + dt * 0.4;
+    b.crackImpactFlash = Math.max(0, (b.crackImpactFlash || 0) - dt * 3.2);
+    b.crackPulse = (b.crackPulse || 0) + dt * 2.0;
     b.ang = -Math.PI / 2 + Math.sin(b.phaseT * 0.7) * 0.15;
     if (b.segments){
       for (var si = 0; si < b.segments.length; si++){
@@ -5928,7 +5934,8 @@ function update(dt){
       // Stasis Barrier bullet deflection while Leviathan slumbers
       if (G.boss && G.boss.dormant){
         var bDist = Math.hypot(b.x - G.boss.x, b.y - G.boss.y);
-        if (bDist < G.boss.barrierRadius + b.r){
+        var bRad = G.boss.barrierRadius || G.boss.barrierR || 210;
+        if (bDist < bRad + b.r){
           var hitAng = Math.atan2(b.y - G.boss.y, b.x - G.boss.x);
           burst(b.x, b.y, '#35f0ff', 6);
           burst(b.x, b.y, '#e0aaff', 4);
@@ -5942,6 +5949,8 @@ function update(dt){
               maxLife: 0.40
             });
           }
+          G.boss.crackImpactFlash = 1.0;
+          G.boss.lastHitAng = hitAng;
           sound.hit(true);
           addText(b.x, b.y - 12, 'STASIS SHIELD // CLEAR 5 WAVES', '#35f0ff', 12);
           dead = true;
@@ -6484,18 +6493,34 @@ function drawIcon(name, x, y, s, col){
       ctx.beginPath(); ctx.arc(0, 0, h*0.3, 0, TAU); ctx.stroke();
       break;
     case 'egg':
+      // Sculpted biomechanical egg contour
       ctx.beginPath();
-      ctx.moveTo(0, -h);
-      ctx.bezierCurveTo(h * 0.75, -h * 0.6, h * 0.85, h * 0.4, 0, h);
-      ctx.bezierCurveTo(-h * 0.85, h * 0.4, -h * 0.75, -h * 0.6, 0, -h);
+      ctx.moveTo(0, -h * 0.95);
+      ctx.bezierCurveTo(h * 0.72, -h * 0.65, h * 0.92, h * 0.35, 0, h * 0.95);
+      ctx.bezierCurveTo(-h * 0.92, h * 0.35, -h * 0.72, -h * 0.65, 0, -h * 0.95);
       ctx.closePath();
       ctx.stroke();
-      // Glowing inner fracture crack
+      // Lateral carapace plate divide seams
       ctx.beginPath();
-      ctx.moveTo(0, -h * 0.35);
-      ctx.lineTo(h * 0.25, -h * 0.1);
-      ctx.lineTo(-h * 0.15, h * 0.2);
-      ctx.lineTo(h * 0.2, h * 0.45);
+      ctx.moveTo(-h * 0.75, -h * 0.1);
+      ctx.quadraticCurveTo(-h * 0.2, -h * 0.15, -h * 0.1, -h * 0.05);
+      ctx.moveTo(h * 0.75, -h * 0.1);
+      ctx.quadraticCurveTo(h * 0.2, -h * 0.15, h * 0.1, -h * 0.05);
+      ctx.stroke();
+      // Glowing jagged fracture chasm with branch
+      ctx.beginPath();
+      ctx.moveTo(0, -h * 0.75);
+      ctx.lineTo(-h * 0.22, -h * 0.45);
+      ctx.lineTo(h * 0.18, -h * 0.15);
+      ctx.lineTo(-h * 0.15, h * 0.20);
+      ctx.lineTo(h * 0.22, h * 0.55);
+      ctx.lineTo(0, h * 0.82);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(h * 0.18, -h * 0.15);
+      ctx.lineTo(h * 0.55, -h * 0.05);
+      ctx.moveTo(-h * 0.15, h * 0.20);
+      ctx.lineTo(-h * 0.50, h * 0.32);
       ctx.stroke();
       break;
     case 'home':
@@ -6527,7 +6552,7 @@ function drawIcon(name, x, y, s, col){
 function drawTitanEgg(b){
   var p = G.player;
   var bx = b.x, by = b.y;
-  var br = b.barrierRadius || 210;
+  var br = b.barrierRadius || b.barrierR || 210;
   var t = b.phaseT || 0;
   var rot = b.caliperRot || 0;
   var curW = Math.min(5, (G && G.wave) || 1);
@@ -6535,9 +6560,13 @@ function drawTitanEgg(b){
   var waveT = (G && G.waveTotal) || 20;
   var waveFrac = waveT > 0 ? clamp(waveK / waveT, 0, 1) : 0;
   var progressFrac = 0;
-  if (!b.dormant || (G && (G.wave >= 6 || (G.wave === 5 && G.waveState === 'cleared')))){
+  if (typeof b.crackProgress === 'number'){
+    progressFrac = clamp(b.crackProgress, 0, 1);
+  } else if (typeof b.progressFrac === 'number'){
+    progressFrac = clamp(b.progressFrac, 0, 1);
+  } else if (!b.dormant || (G && (G.wave >= 6 || (G.wave === 5 && G.waveState === 'cleared')))){
     progressFrac = 1.0;
-  } else if (p && p.lvl >= BOSS_UNLOCK_LEVEL){
+  } else if (p && p.lvl >= BOSS_UNLOCK_LEVEL && (!G || G.mode !== 'training')){
     progressFrac = 1.0;
   } else {
     progressFrac = clamp(((curW - 1) + waveFrac) / 5, 0, 0.98);
@@ -6545,56 +6574,81 @@ function drawTitanEgg(b){
   var shellIntegrity = Math.max(0, 1 - progressFrac);
   var heartFreq = 1.2 + curW * 0.55;
   var heartPulse = Math.pow(Math.max(0, Math.sin(G.t * heartFreq)), 8);
+  var impactFlash = b.crackImpactFlash || 0;
+  var crackPulse = b.crackPulse || (G.t * 2.0);
+  var lastHitAng = (typeof b.lastHitAng === 'number') ? b.lastHitAng : 0;
 
   ctx.save();
 
-  // 1. Eight Perimeter Bio-Mechanical Charging Pylons & High-Voltage Conduits
+  // 1. Eight Perimeter Bio-Mechanical Charging Pylons & Conduits
   var pylonCount = 8;
   var pylonDist = br + 75;
   for (var pi = 0; pi < pylonCount; pi++){
-    var pa = pi * (TAU / pylonCount) + Math.sin(t * 0.4) * 0.02;
+    var pa = pi * (TAU / pylonCount) + Math.sin(t * 0.35 + pi) * 0.015;
     var px = bx + Math.cos(pa) * pylonDist;
     var py = by + Math.sin(pa) * pylonDist;
-    var rimX = bx + Math.cos(pa) * (br - 10);
-    var rimY = by + Math.sin(pa) * (br - 10);
+    var rimX = bx + Math.cos(pa) * (br - 8);
+    var rimY = by + Math.sin(pa) * (br - 8);
 
-    // High-voltage lightning / plasma conduit connecting pylon to egg cradle
-    ctx.strokeStyle = 'rgba(53, 240, 255, 0.45)';
-    ctx.lineWidth = 2.5;
+    // Directional bullet impact resonance on this pylon
+    var pylonAngDiff = Math.abs(Math.atan2(Math.sin(pa - lastHitAng), Math.cos(pa - lastHitAng)));
+    var pylonProximity = Math.max(0, 1 - pylonAngDiff / (Math.PI * 0.55));
+    var pylonHitSurge = impactFlash * Math.pow(pylonProximity, 1.6);
+
+    // Multi-tier dynamic high-voltage plasma conduit
+    var jitter1 = Math.sin(t * 22 + pi * 4) * (5 + progressFrac * 6 + pylonHitSurge * 10);
+    var jitter2 = Math.cos(t * 26 + pi * 5) * (5 + progressFrac * 6 + pylonHitSurge * 10);
+    var m1x = px * 0.66 + rimX * 0.34 + Math.cos(pa + Math.PI / 2) * jitter1;
+    var m1y = py * 0.66 + rimY * 0.34 + Math.sin(pa + Math.PI / 2) * jitter1;
+    var m2x = px * 0.34 + rimX * 0.66 + Math.cos(pa + Math.PI / 2) * jitter2;
+    var m2y = py * 0.34 + rimY * 0.66 + Math.sin(pa + Math.PI / 2) * jitter2;
+
+    // Conduit Glow
+    var conduitBaseCol = progressFrac > 0.75 ? 'rgba(255, 77, 109, ' : (progressFrac > 0.45 ? 'rgba(255, 224, 102, ' : 'rgba(53, 240, 255, ');
+    ctx.strokeStyle = pylonHitSurge > 0.2 ? 'rgba(255, 255, 255, 0.75)' : (conduitBaseCol + (0.30 + pylonHitSurge * 0.45) + ')');
+    ctx.lineWidth = 4.5 + pylonHitSurge * 4;
     ctx.beginPath();
     ctx.moveTo(px, py);
-    var midJitterX = (px + rimX) / 2 + Math.sin(t * 18 + pi * 3) * 6;
-    var midJitterY = (py + rimY) / 2 + Math.cos(t * 18 + pi * 3) * 6;
-    ctx.lineTo(midJitterX, midJitterY);
+    ctx.lineTo(m1x, m1y);
+    ctx.lineTo(m2x, m2y);
     ctx.lineTo(rimX, rimY);
     ctx.stroke();
 
-    // Secondary energy glow thread
-    ctx.strokeStyle = progressFrac > 0.7 ? 'rgba(255, 77, 109, 0.75)' : 'rgba(224, 170, 255, 0.65)';
-    ctx.lineWidth = 1.4;
+    // Conduit Electric Filament
+    ctx.strokeStyle = pylonHitSurge > 0.4 ? '#ffffff' : (progressFrac > 0.75 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : '#35f0ff'));
+    ctx.lineWidth = 1.8 + pylonHitSurge * 1.5;
     ctx.beginPath();
     ctx.moveTo(px, py);
+    ctx.lineTo(m1x, m1y);
+    ctx.lineTo(m2x, m2y);
     ctx.lineTo(rimX, rimY);
     ctx.stroke();
 
-    // Traveling plasma packet toward egg center
-    var packetProgress = (G.t * 1.8 + pi * 0.25) % 1.0;
-    var pkX = px + (rimX - px) * packetProgress;
-    var pkY = py + (rimY - py) * packetProgress;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(pkX, pkY, 2.5, 0, TAU);
-    ctx.fill();
+    // White core lightning thread
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
 
-    // Octagonal Pylon Chassis
+    // Traveling magnetic flux plasma packets
+    for (var pki = 0; pki < 2; pki++){
+      var packetProgress = (G.t * (1.6 + progressFrac * 1.2 + pylonHitSurge * 2.0) + pi * 0.25 + pki * 0.5) % 1.0;
+      var pkX = px + (rimX - px) * packetProgress;
+      var pkY = py + (rimY - py) * packetProgress;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(pkX, pkY, 2.8 + pylonHitSurge * 1.5, 0, TAU);
+      ctx.fill();
+    }
+
+    // Heavy Octagonal Pylon Transformer Chassis
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(pa + Math.PI / 2);
-    ctx.fillStyle = '#0a0e1c';
-    ctx.strokeStyle = progressFrac > 0.8 ? '#ff4d6d' : 'rgba(53, 240, 255, 0.85)';
-    ctx.lineWidth = 2;
+    ctx.fillStyle = '#080c16';
+    ctx.strokeStyle = pylonHitSurge > 0.3 ? '#ffffff' : (progressFrac > 0.8 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : 'rgba(53, 240, 255, 0.85)'));
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
-    var pr = 15;
+    var pr = 17;
     for (var ci = 0; ci < 8; ci++){
       var ca = ci * (TAU / 8);
       var cx = Math.cos(ca) * pr;
@@ -6604,70 +6658,96 @@ function drawTitanEgg(b){
     ctx.closePath();
     ctx.fill(); ctx.stroke();
 
+    // Lateral Heatsink Fins
+    ctx.fillStyle = '#101726';
+    ctx.fillRect(-pr - 5, -5, 5, 10);
+    ctx.fillRect(pr, -5, 5, 10);
+
     // Core pulsing crystal
-    var corePulse = 0.5 + Math.sin(b.pylonEnergyT * 4 + pi * 1.2) * 0.45;
-    ctx.fillStyle = corePulse > 0.6 ? '#35f0ff' : '#e0aaff';
+    var corePulse = 0.5 + Math.sin((b.pylonEnergyT || 0) * 4.5 + pi * 1.2) * 0.45 + pylonHitSurge * 0.4;
+    ctx.fillStyle = pylonHitSurge > 0.5 ? '#ffffff' : (progressFrac > 0.8 ? '#ff4d6d' : (corePulse > 0.6 ? '#35f0ff' : '#e0aaff'));
     ctx.beginPath();
-    ctx.arc(0, 0, 5, 0, TAU);
+    ctx.arc(0, 0, 5.5 + pylonHitSurge * 2, 0, TAU);
+    ctx.fill();
+
+    // White emitter center
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.2, 0, TAU);
     ctx.fill();
     ctx.restore();
   }
 
   // 2. Dual Mechanical Caliper Rings (Clockwise & Counter-Clockwise)
+  // Outer Titanium Caliper Ring
   ctx.save();
   ctx.translate(bx, by);
-  ctx.rotate(rot);
-  ctx.strokeStyle = 'rgba(53, 240, 255, 0.35)';
-  ctx.lineWidth = 2;
-  var outerR = br + 18;
+  ctx.rotate(rot * 0.5);
+  ctx.strokeStyle = progressFrac > 0.8 ? 'rgba(255, 77, 109, 0.55)' : (progressFrac > 0.45 ? 'rgba(255, 224, 102, 0.48)' : 'rgba(53, 240, 255, 0.42)');
+  ctx.lineWidth = 2.5;
+  var outerR = br + 20;
   for (var oi = 0; oi < 16; oi++){
     var oAng = oi * (TAU / 16);
     ctx.beginPath();
-    ctx.arc(0, 0, outerR, oAng + 0.05, oAng + (TAU / 16) - 0.05);
+    ctx.arc(0, 0, outerR, oAng + 0.04, oAng + (TAU / 16) - 0.04);
     ctx.stroke();
-    var tx = Math.cos(oAng) * (outerR + 5);
-    var ty = Math.sin(oAng) * (outerR + 5);
+
+    // Gear tooth interlock
+    var tx1 = Math.cos(oAng + 0.08) * (outerR + 7);
+    var ty1 = Math.sin(oAng + 0.08) * (outerR + 7);
+    var tx2 = Math.cos(oAng + (TAU / 16) - 0.08) * (outerR + 7);
+    var ty2 = Math.sin(oAng + (TAU / 16) - 0.08) * (outerR + 7);
     ctx.beginPath();
-    ctx.moveTo(Math.cos(oAng) * outerR, Math.sin(oAng) * outerR);
-    ctx.lineTo(tx, ty);
+    ctx.moveTo(Math.cos(oAng + 0.08) * outerR, Math.sin(oAng + 0.08) * outerR);
+    ctx.lineTo(tx1, ty1);
+    ctx.lineTo(tx2, ty2);
+    ctx.lineTo(Math.cos(oAng + (TAU / 16) - 0.08) * outerR, Math.sin(oAng + (TAU / 16) - 0.08) * outerR);
     ctx.stroke();
   }
   ctx.restore();
 
+  // Inner Magnetic Levitation Ring
   ctx.save();
   ctx.translate(bx, by);
-  ctx.rotate(-rot * 1.6);
-  ctx.strokeStyle = 'rgba(224, 170, 255, 0.4)';
-  ctx.lineWidth = 1.5;
-  var innerR = br + 6;
+  ctx.rotate(-rot * 1.3);
+  ctx.strokeStyle = progressFrac > 0.8 ? 'rgba(255, 100, 150, 0.55)' : 'rgba(224, 170, 255, 0.45)';
+  ctx.lineWidth = 1.8;
+  var innerR = br + 7;
   for (var ii = 0; ii < 24; ii++){
     var iAng = ii * (TAU / 24);
     ctx.beginPath();
-    ctx.arc(0, 0, innerR, iAng + 0.04, iAng + (TAU / 24) - 0.04);
+    ctx.arc(0, 0, innerR, iAng + 0.03, iAng + (TAU / 24) - 0.03);
     ctx.stroke();
+    // Magnetic coil emitter pad
+    var ix = Math.cos(iAng) * innerR;
+    var iy = Math.sin(iAng) * innerR;
+    ctx.fillStyle = (ii % 3 === 0) ? '#35f0ff' : '#e0aaff';
+    ctx.beginPath();
+    ctx.arc(ix, iy, 2.0, 0, TAU);
+    ctx.fill();
   }
   ctx.restore();
 
   // 3. Stasis Hexagonal Forcefield Dome
-  var grad = ctx.createRadialGradient(bx, by, br * 0.2, bx, by, br);
-  grad.addColorStop(0, 'rgba(224, 170, 255, 0.06)');
-  grad.addColorStop(0.7, 'rgba(53, 240, 255, 0.15)');
-  grad.addColorStop(1, 'rgba(53, 240, 255, 0.32)');
+  var grad = ctx.createRadialGradient(bx, by, br * 0.15, bx, by, br);
+  grad.addColorStop(0, 'rgba(224, 170, 255, ' + (0.06 + impactFlash * 0.12) + ')');
+  grad.addColorStop(0.7, 'rgba(53, 240, 255, ' + (0.16 + impactFlash * 0.20) + ')');
+  grad.addColorStop(1, 'rgba(53, 240, 255, ' + (0.34 + impactFlash * 0.35) + ')');
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(bx, by, br, 0, TAU);
   ctx.fill();
 
   // Hexagonal lattice grid overlay
-  ctx.strokeStyle = 'rgba(53, 240, 255, 0.14)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = impactFlash > 0.1 ? 'rgba(255, 255, 255, 0.35)' : 'rgba(53, 240, 255, 0.16)';
+  ctx.lineWidth = 1.2;
   var hexSize = 28;
   var hexRows = 8, hexCols = 8;
   for (var rIndex = -hexRows; rIndex <= hexRows; rIndex++){
     for (var cIndex = -hexCols; cIndex <= hexCols; cIndex++){
       var hx = bx + cIndex * hexSize * 1.5;
       var hy = by + rIndex * hexSize * Math.sqrt(3) + ((Math.abs(cIndex) % 2) * hexSize * Math.sqrt(3) / 2);
-      if (Math.hypot(hx - bx, hy - by) < br - 12){
+      if (Math.hypot(hx - bx, hy - by) < br - 10){
         ctx.beginPath();
         for (var hi = 0; hi < 6; hi++){
           var ha = hi * (TAU / 6);
@@ -6682,188 +6762,657 @@ function drawTitanEgg(b){
   }
 
   // Pulsing outer barrier boundary
-  var barrierPulse = 0.6 + Math.sin(G.t * 3.5) * 0.25;
-  ctx.strokeStyle = 'rgba(53, 240, 255, ' + barrierPulse + ')';
-  ctx.lineWidth = 3;
-  ctx.shadowColor = '#35f0ff';
-  ctx.shadowBlur = 15;
+  var barrierPulse = 0.65 + Math.sin(G.t * 3.5) * 0.25 + impactFlash * 0.35;
+  ctx.strokeStyle = progressFrac > 0.8 ? 'rgba(255, 77, 109, ' + barrierPulse + ')' : 'rgba(53, 240, 255, ' + barrierPulse + ')';
+  ctx.lineWidth = 3.2;
   ctx.beginPath();
   ctx.arc(bx, by, br, 0, TAU);
   ctx.stroke();
-  ctx.shadowBlur = 0;
 
-  // 4. THE TITAN BIOMECHANICAL EGG CHASSIS & AMNIOTIC CORE
+  // 4. THE TITAN BIOMECHANICAL EGG CHASSIS & PROGRESSIVE FRACTURE FISSURES
   ctx.save();
   ctx.translate(bx, by);
 
-  // Egg Dimensions: Profile width 150px, height 210px
-  var eggW = 75;
-  var eggH = 105;
-  var eggVibX = progressFrac > 0.8 ? (Math.random() - 0.5) * 4 * progressFrac : 0;
-  var eggVibY = progressFrac > 0.8 ? (Math.random() - 0.5) * 4 * progressFrac : 0;
+  // Egg Dimensions: Profile width 152px, height 216px
+  var eggW = 76;
+  var eggH = 108;
+  var breath = 1 + Math.sin(t * 1.8) * 0.012;
+  var vibPhase = G.t * 38;
+  var vibAmp = (progressFrac > 0.6 ? (progressFrac - 0.6) * 10 : 0) + impactFlash * 4.5;
+  var eggVibX = vibAmp > 0.1 ? Math.sin(vibPhase) * vibAmp * 0.6 : 0;
+  var eggVibY = vibAmp > 0.1 ? Math.cos(vibPhase * 1.3) * vibAmp * 0.6 : 0;
   ctx.translate(eggVibX, eggVibY);
+  ctx.scale(breath, breath);
 
-  // A. Incubator Cradle Base Pedestal
-  ctx.fillStyle = '#080d1a';
+  // Helper: Computes exact radius of ovoid egg at polar angle ang
+  function getEggRadius(ang){
+    var sa = Math.sin(ang);
+    var ca = Math.cos(ang);
+    var wFactor = (sa < 0) ? (0.76 - sa * 0.18) : (1.04 - sa * 0.10);
+    var rW = eggW * wFactor;
+    var rH = (sa < 0) ? eggH : (eggH * 0.95);
+    var denom = Math.hypot(rH * ca, rW * sa);
+    return denom > 0 ? (rW * rH) / denom : eggW;
+  }
+
+  // A. Gantry Clamping Claws & Cradle Supports
+  // Upper Hydraulic Clamping Arms (Top Gantry Crown)
+  ctx.save();
+  ctx.fillStyle = '#060a14';
   ctx.strokeStyle = '#35f0ff';
+  ctx.lineWidth = 2.0;
+  var clampLift = progressFrac * 10;
+  // Left top clamp
+  ctx.beginPath();
+  ctx.moveTo(-eggW * 0.55, -eggH * 0.90 - clampLift);
+  ctx.lineTo(-eggW * 0.35, -eggH * 1.15 - clampLift);
+  ctx.lineTo(-eggW * 0.15, -eggH * 1.15 - clampLift);
+  ctx.lineTo(-eggW * 0.20, -eggH * 0.88 - clampLift);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Right top clamp
+  ctx.beginPath();
+  ctx.moveTo(eggW * 0.55, -eggH * 0.90 - clampLift);
+  ctx.lineTo(eggW * 0.35, -eggH * 1.15 - clampLift);
+  ctx.lineTo(eggW * 0.15, -eggH * 1.15 - clampLift);
+  ctx.lineTo(eggW * 0.20, -eggH * 0.88 - clampLift);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Hydraulic Piston Cylinders
+  ctx.strokeStyle = '#e0aaff';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(-eggW * 0.85, eggH * 0.72);
-  ctx.quadraticCurveTo(0, eggH * 1.05, eggW * 0.85, eggH * 0.72);
-  ctx.lineTo(eggW * 0.65, eggH * 0.95);
-  ctx.quadraticCurveTo(0, eggH * 1.15, -eggW * 0.65, eggH * 0.95);
+  ctx.moveTo(-eggW * 0.25, -eggH * 1.12 - clampLift); ctx.lineTo(-eggW * 0.25, -eggH * 0.92);
+  ctx.moveTo(eggW * 0.25, -eggH * 1.12 - clampLift); ctx.lineTo(eggW * 0.25, -eggH * 0.92);
+  ctx.stroke();
+  ctx.restore();
+
+  // Lower Industrial Incubator Cradle Base
+  ctx.save();
+  ctx.fillStyle = '#070b16';
+  ctx.strokeStyle = progressFrac > 0.8 ? '#ff4d6d' : '#35f0ff';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-eggW * 0.92, eggH * 0.68);
+  ctx.quadraticCurveTo(0, eggH * 1.08, eggW * 0.92, eggH * 0.68);
+  ctx.lineTo(eggW * 0.72, eggH * 0.98);
+  ctx.quadraticCurveTo(0, eggH * 1.20, -eggW * 0.72, eggH * 0.98);
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
-  // B. Translucent Amniotic Chamber Fluid (Glowing Core)
-  var eggGrad = ctx.createRadialGradient(0, 10, 15, 0, 0, eggH);
-  eggGrad.addColorStop(0, 'rgba(224, 170, 255, ' + (0.35 + heartPulse * 0.35) + ')');
-  eggGrad.addColorStop(0.4, 'rgba(123, 44, 191, 0.45)');
-  eggGrad.addColorStop(0.8, 'rgba(24, 6, 46, 0.85)');
-  eggGrad.addColorStop(1, '#070114');
+  // Coolant manifold conduits on base
+  ctx.strokeStyle = 'rgba(53, 240, 255, 0.75)';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(-eggW * 0.65, eggH * 0.82);
+  ctx.quadraticCurveTo(0, eggH * 1.02, eggW * 0.65, eggH * 0.82);
+  ctx.stroke();
 
+  // Exhaust Heat Vents
+  ctx.fillStyle = '#02050c';
+  for (var vi = -2; vi <= 2; vi++){
+    var vx = vi * 20;
+    var vy = eggH * 1.02;
+    ctx.fillRect(vx - 6, vy, 12, 6);
+    ctx.strokeRect(vx - 6, vy, 12, 6);
+  }
+  ctx.restore();
+
+  // B. Translucent Amniotic Chamber Fluid (Glowing Void Core)
+  var eggGrad = ctx.createRadialGradient(0, -10, 18, 0, 10, eggH * 1.05);
+  var coreHueAlpha = 0.42 + heartPulse * 0.38 + impactFlash * 0.20;
+  if (progressFrac > 0.75){
+    eggGrad.addColorStop(0, 'rgba(255, 255, 255, ' + coreHueAlpha + ')');
+    eggGrad.addColorStop(0.25, 'rgba(255, 77, 109, ' + (coreHueAlpha * 0.85) + ')');
+    eggGrad.addColorStop(0.65, 'rgba(120, 10, 60, 0.75)');
+    eggGrad.addColorStop(0.92, 'rgba(20, 2, 28, 0.92)');
+    eggGrad.addColorStop(1, '#05000c');
+  } else {
+    eggGrad.addColorStop(0, 'rgba(255, 255, 255, ' + (coreHueAlpha * 0.9) + ')');
+    eggGrad.addColorStop(0.25, 'rgba(224, 170, 255, ' + coreHueAlpha + ')');
+    eggGrad.addColorStop(0.55, 'rgba(123, 44, 191, 0.65)');
+    eggGrad.addColorStop(0.85, 'rgba(24, 6, 46, 0.88)');
+    eggGrad.addColorStop(1, '#050012');
+  }
+
+  // Draw smooth anatomically sculpted egg shell silhouette
   ctx.fillStyle = eggGrad;
   ctx.beginPath();
   ctx.moveTo(0, -eggH);
-  ctx.bezierCurveTo(eggW * 0.85, -eggH * 0.65, eggW * 1.05, eggH * 0.45, 0, eggH * 0.92);
-  ctx.bezierCurveTo(-eggW * 1.05, eggH * 0.45, -eggW * 0.85, -eggH * 0.65, 0, -eggH);
+  ctx.bezierCurveTo(eggW * 0.72, -eggH * 0.68, eggW * 1.05, eggH * 0.35, 0, eggH * 0.95);
+  ctx.bezierCurveTo(-eggW * 1.05, eggH * 0.35, -eggW * 0.72, -eggH * 0.68, 0, -eggH);
   ctx.closePath();
   ctx.fill();
 
-  // C. Coiled Leviathan Embryo Silhouette inside the amniotic fluid
+  // Swirling amniotic fluid density waves
   ctx.save();
-  ctx.globalAlpha = 0.68 + heartPulse * 0.25;
-  ctx.strokeStyle = '#050010';
-  ctx.lineWidth = 22;
-  ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.16 + heartPulse * 0.12;
+  ctx.strokeStyle = progressFrac > 0.75 ? '#ff4d6d' : '#e0aaff';
+  ctx.lineWidth = 14;
   ctx.beginPath();
-  for (var es = 0; es <= 14; es++){
-    var ea = -Math.PI / 2 + (es * 0.36) + Math.sin(t * 1.5 + es * 0.2) * 0.05;
-    var ed = 18 + es * 3.8;
-    var ex = Math.cos(ea) * ed * 0.9;
-    var ey = Math.sin(ea) * ed * 1.15 + 5;
-    if (es === 0) ctx.moveTo(ex, ey); else ctx.lineTo(ex, ey);
-  }
+  ctx.ellipse(0, 0, eggW * 0.62, eggH * 0.65, t * 0.5, 0, TAU);
   ctx.stroke();
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.ellipse(0, 5, eggW * 0.45, eggH * 0.48, -t * 0.8, 0, TAU);
+  ctx.stroke();
+  ctx.restore();
 
-  // Embryo Head Silhouette
+  // Suspended bioluminescent plankton / amniotic particles
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  for (var piIndex = 0; piIndex < 10; piIndex++){
+    var pTime = t * 1.2 + piIndex * 1.618;
+    var ppx = Math.sin(pTime * 0.7 + piIndex) * (eggW * 0.45);
+    var ppy = Math.cos(pTime * 0.5 + piIndex) * (eggH * 0.52);
+    var pAlpha = 0.3 + 0.5 * Math.sin(pTime * 2.0);
+    ctx.globalAlpha = pAlpha;
+    ctx.beginPath();
+    ctx.arc(ppx, ppy, 1.8, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // C. Fully Articulated Coiled Abyss Leviathan Embryo Silhouette
+  ctx.save();
+  ctx.globalAlpha = 0.85 + heartPulse * 0.15;
+
+  // 14 Articulated Embryonic Vertebrae & Rib Spurs
+  var embryoSegs = 14;
+  for (var es = 0; es < embryoSegs; es++){
+    var ea = -Math.PI / 2 + (es * 0.37) + Math.sin(t * 1.6 + es * 0.22) * 0.06;
+    var ed = 16 + es * 4.2;
+    var ex = Math.cos(ea) * ed * 0.88;
+    var ey = Math.sin(ea) * ed * 1.12 + 6;
+    var segSize = Math.max(7, 24 - es * 1.2);
+
+    // Lateral rib spur
+    var ribAng = ea + Math.PI / 2;
+    var ribLen = segSize * 1.4;
+    ctx.strokeStyle = '#04010a';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(ex - Math.cos(ribAng) * ribLen * 0.5, ey - Math.sin(ribAng) * ribLen * 0.5);
+    ctx.lineTo(ex + Math.cos(ribAng) * ribLen, ey + Math.sin(ribAng) * ribLen);
+    ctx.stroke();
+
+    // Embryo Vertebra Disc
+    ctx.fillStyle = '#060012';
+    ctx.beginPath();
+    ctx.ellipse(ex, ey, segSize * 0.65, segSize * 0.5, ea, 0, TAU);
+    ctx.fill();
+
+    // Bio-electric nervous conduit line along spine
+    if (es > 0){
+      var prevEa = -Math.PI / 2 + ((es - 1) * 0.37) + Math.sin(t * 1.6 + (es - 1) * 0.22) * 0.06;
+      var prevEd = 16 + (es - 1) * 4.2;
+      var pex = Math.cos(prevEa) * prevEd * 0.88;
+      var pey = Math.sin(prevEa) * prevEd * 1.12 + 6;
+      ctx.strokeStyle = progressFrac > 0.75 ? '#ff4d6d' : '#e0aaff';
+      ctx.lineWidth = 1.6 + heartPulse * 1.2;
+      ctx.beginPath();
+      ctx.moveTo(pex, pey);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
+  }
+
+  // Embryo Head Silhouette & Mandibles
+  var headX = 0, headY = -24;
   ctx.fillStyle = '#050010';
   ctx.beginPath();
-  ctx.ellipse(0, -22, 18, 14, -0.2, 0, TAU);
+  ctx.ellipse(headX, headY, 20, 15, -0.15, 0, TAU);
   ctx.fill();
 
-  // Embryo Heartbeat Organ
+  // Mandible pincers curled over snout
+  ctx.strokeStyle = '#050010';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(headX - 10, headY + 8, 10, 0, Math.PI * 0.8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(headX + 10, headY + 8, 10, Math.PI * 0.2, Math.PI);
+  ctx.stroke();
+
+  // Bioluminescent Cyclopean Optic Eye / Visor
+  var eyeX = headX - 3, eyeY = headY - 4;
+  var eyeOpen = clamp(0.35 + progressFrac * 0.65 + impactFlash * 0.4, 0.35, 1.0);
+  ctx.fillStyle = progressFrac > 0.75 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : '#35f0ff');
+  ctx.beginPath();
+  ctx.ellipse(eyeX, eyeY, 6 * eyeOpen, 3 * eyeOpen, -0.2, 0, TAU);
+  ctx.fill();
+  // Slit pupil
+  ctx.fillStyle = '#050010';
+  ctx.beginPath();
+  ctx.ellipse(eyeX, eyeY, 1.2, 3.2 * eyeOpen, -0.2, 0, TAU);
+  ctx.fill();
+  // Ocular flare
+  if (progressFrac > 0.4 || impactFlash > 0.2){
+    ctx.strokeStyle = ctx.fillStyle = progressFrac > 0.75 ? 'rgba(255, 77, 109, 0.6)' : 'rgba(53, 240, 255, 0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(eyeX - 12, eyeY + 2);
+    ctx.lineTo(eyeX + 18, eyeY - 4);
+    ctx.stroke();
+  }
+
+  // Pulsating Embryo Heart Bio-Core Organ
   var heartX = 2, heartY = -4;
-  var heartSize = 9 + heartPulse * 14;
-  ctx.fillStyle = progressFrac > 0.7 ? 'rgba(255, 77, 109, 0.95)' : 'rgba(224, 170, 255, 0.95)';
-  ctx.shadowColor = ctx.fillStyle;
-  ctx.shadowBlur = 16 + heartPulse * 16;
+  var heartSize = 10 + heartPulse * 16 + impactFlash * 6;
+  var heartGlowCol = progressFrac > 0.75 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : '#e0aaff');
+
+  ctx.fillStyle = heartGlowCol;
   ctx.beginPath();
   ctx.arc(heartX, heartY, heartSize, 0, TAU);
   ctx.fill();
-  ctx.beginPath();
-  ctx.arc(heartX, heartY, heartSize * 0.4, 0, TAU);
+
+  // Inner white-hot ventricular core
   ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(heartX, heartY, heartSize * 0.42, 0, TAU);
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.restore();
 
-  // D. 6 Interlocking Biomechanical Chitin Carapace Plates
-  var spreadDist = progressFrac * 18;
-  var plateCount = 6;
+  // D. BIOMECHANICAL CHITIN CARAPACE ARMOR ARCHITECTURE
+  // Part 1: Eight Outer Lateral Carapace Armor Plates (Conforming to Ovoid Profile)
+  var plateSpread = progressFrac * 22;
+  var plateCount = 8;
   for (var pli = 0; pli < plateCount; pli++){
     var pla = (pli / plateCount) * TAU - Math.PI / 2;
-    var pSepX = Math.cos(pla) * spreadDist;
-    var pSepY = Math.sin(pla) * spreadDist * 0.7;
+    var pSepX = Math.cos(pla) * plateSpread;
+    var pSepY = Math.sin(pla) * plateSpread * 0.85;
+
+    // Localized impact flash on this plate
+    var plateDiff = Math.abs(Math.atan2(Math.sin(pla - lastHitAng), Math.cos(pla - lastHitAng)));
+    var plateProx = Math.max(0, 1 - plateDiff / Math.PI);
+    var plateHitFlash = impactFlash * Math.pow(plateProx, 1.8);
 
     ctx.save();
     ctx.translate(pSepX, pSepY);
-    ctx.fillStyle = (pli % 2 === 0) ? '#0c0217' : '#17052e';
-    ctx.strokeStyle = progressFrac > 0.8 ? '#ff4d6d' : 'rgba(224, 170, 255, 0.75)';
+    ctx.fillStyle = (pli % 2 === 0) ? '#090314' : '#120524';
+    ctx.strokeStyle = plateHitFlash > 0.3 ? '#ffffff' : (progressFrac > 0.8 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : 'rgba(224, 170, 255, 0.75)'));
     ctx.lineWidth = 2.4;
 
     ctx.beginPath();
     var pStartA = pla - (TAU / plateCount) * 0.46;
     var pEndA = pla + (TAU / plateCount) * 0.46;
-    var rOuterW = eggW * 0.96;
-    var rOuterH = eggH * 0.96;
-    var rInnerW = eggW * 0.62;
-    var rInnerH = eggH * 0.62;
+    var stepCount = 5;
 
-    var px1 = Math.cos(pStartA) * rOuterW;
-    var py1 = Math.sin(pStartA) * rOuterH;
-    var px2 = Math.cos(pEndA) * rOuterW;
-    var py2 = Math.sin(pEndA) * rOuterH;
-    var px3 = Math.cos(pEndA) * rInnerW;
-    var py3 = Math.sin(pEndA) * rInnerH;
-    var px4 = Math.cos(pStartA) * rInnerW;
-    var py4 = Math.sin(pStartA) * rInnerH;
-
-    ctx.moveTo(px1, py1);
-    ctx.quadraticCurveTo(Math.cos(pla) * (rOuterW + 8), Math.sin(pla) * (rOuterH + 8), px2, py2);
-    ctx.lineTo(px3, py3);
-    ctx.quadraticCurveTo(Math.cos(pla) * rInnerW, Math.sin(pla) * rInnerH, px4, py4);
+    // Trace outer ovoid contour of this plate
+    for (var st = 0; st <= stepCount; st++){
+      var curA = pStartA + (pEndA - pStartA) * (st / stepCount);
+      var curR = getEggRadius(curA) * 0.98;
+      var curX = Math.cos(curA) * curR;
+      var curY = Math.sin(curA) * curR;
+      if (st === 0) ctx.moveTo(curX, curY); else ctx.lineTo(curX, curY);
+    }
+    // Trace inner contour of this plate
+    var innerFactor = 0.52 - (1 - progressFrac) * 0.12;
+    for (var st = stepCount; st >= 0; st--){
+      var curA = pStartA + (pEndA - pStartA) * (st / stepCount);
+      var curR = getEggRadius(curA) * innerFactor;
+      var curX = Math.cos(curA) * curR;
+      var curY = Math.sin(curA) * curR;
+      ctx.lineTo(curX, curY);
+    }
     ctx.closePath();
     ctx.fill(); ctx.stroke();
 
-    // Carapace plate spine seam
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(pla) * (rOuterW + 6), Math.sin(pla) * (rOuterH + 6));
-    ctx.lineTo(Math.cos(pla) * (rInnerW + 4), Math.sin(pla) * (rInnerH + 4));
-    ctx.strokeStyle = 'rgba(53, 240, 255, 0.65)';
+    // Recessed Heat-Sink Vent Slit on each carapace plate
+    var midA = pla;
+    var ventROuter = getEggRadius(midA) * 0.88;
+    var ventRInner = getEggRadius(midA) * (innerFactor + 0.12);
+    ctx.strokeStyle = plateHitFlash > 0.2 ? '#ffffff' : (progressFrac > 0.75 ? '#ff4d6d' : 'rgba(53, 240, 255, 0.6)');
     ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(midA) * ventROuter, Math.sin(midA) * ventROuter);
+    ctx.lineTo(Math.cos(midA) * ventRInner, Math.sin(midA) * ventRInner);
     ctx.stroke();
 
     ctx.restore();
   }
 
-  // E. Dynamic Glowing Stress Fractures / Fissures (Scale with Player Level)
-  if (progressFrac > 0.15){
+  // Part 2: Five Central Dorsal Carapace Scutes (Covering Sagittal Midline)
+  // When intact (0% progress), scutes tightly interlock along the sagittal fault.
+  // As progressFrac increases, scutes split left/right and retract to expose the embryo.
+  var centralScutes = [
+    { y: -eggH * 0.76, h: 22, w: 32 }, // Crown Scute
+    { y: -eggH * 0.44, h: 26, w: 40 }, // Upper Thorax Scute
+    { y: -eggH * 0.10, h: 30, w: 44 }, // Mid Core Scute (Over Heart)
+    { y: eggH * 0.26,  h: 28, w: 38 }, // Lower Abdominal Scute
+    { y: eggH * 0.62,  h: 24, w: 30 }  // Basal Keel Scute
+  ];
+  var scuteRetract = progressFrac * 20;
+
+  for (var sci = 0; sci < centralScutes.length; sci++){
+    var sc = centralScutes[sci];
+    var scuteAng = Math.atan2(sc.y, 0);
+    var scuteDiff = Math.abs(Math.atan2(Math.sin(scuteAng - lastHitAng), Math.cos(scuteAng - lastHitAng)));
+    var scuteProx = Math.max(0, 1 - scuteDiff / Math.PI);
+    var scuteHitFlash = impactFlash * Math.pow(scuteProx, 1.8);
+
+    // Left half scute
+    ctx.save();
+    ctx.translate(-scuteRetract, 0);
+    ctx.fillStyle = (sci % 2 === 0) ? '#0b0416' : '#130526';
+    ctx.strokeStyle = scuteHitFlash > 0.3 ? '#ffffff' : (progressFrac > 0.8 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : 'rgba(224, 170, 255, 0.7)'));
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(-2, sc.y - sc.h * 0.5);
+    ctx.lineTo(-sc.w * 0.5, sc.y - sc.h * 0.35);
+    ctx.lineTo(-sc.w * 0.5, sc.y + sc.h * 0.35);
+    ctx.lineTo(-2, sc.y + sc.h * 0.5);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // Right half scute
+    ctx.save();
+    ctx.translate(scuteRetract, 0);
+    ctx.fillStyle = (sci % 2 === 0) ? '#0b0416' : '#130526';
+    ctx.strokeStyle = scuteHitFlash > 0.3 ? '#ffffff' : (progressFrac > 0.8 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : 'rgba(224, 170, 255, 0.7)'));
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(2, sc.y - sc.h * 0.5);
+    ctx.lineTo(sc.w * 0.5, sc.y - sc.h * 0.35);
+    ctx.lineTo(sc.w * 0.5, sc.y + sc.h * 0.35);
+    ctx.lineTo(2, sc.y + sc.h * 0.5);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  // E. PROGRESSIVE BIOMECHANICAL CRACKS & FRACTURE VISUAL EFFECTS
+  // Continuous sub-segment linear interpolation engine with localized deflection impact resonance
+  if (progressFrac > 0.05 || impactFlash > 0.1){
     ctx.save();
     var crackCol = progressFrac > 0.75 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : '#35f0ff');
-    ctx.strokeStyle = crackCol;
-    ctx.shadowColor = crackCol;
-    ctx.shadowBlur = 10 + progressFrac * 12;
-    ctx.lineWidth = 1.8 + progressFrac * 1.5;
+    var glowCol = progressFrac > 0.75 ? 'rgba(255, 77, 109, 0.45)' : (progressFrac > 0.45 ? 'rgba(255, 224, 102, 0.40)' : 'rgba(53, 240, 255, 0.35)');
+    var crackIntensity = 1.0 + impactFlash * 1.8 + heartPulse * 0.6;
+    var baseW = (1.8 + progressFrac * 2.8) * crackIntensity;
 
-    // Crack Branch 1 (Upper left downward)
-    ctx.beginPath();
-    ctx.moveTo(-15, -eggH * 0.75);
-    ctx.lineTo(-eggW * 0.35, -eggH * 0.45);
-    ctx.lineTo(-eggW * 0.20, -eggH * 0.15);
-    if (progressFrac > 0.5){
-      ctx.lineTo(-eggW * 0.45, eggH * 0.15);
-      ctx.lineTo(-eggW * 0.25, eggH * 0.5);
-    }
-    ctx.stroke();
+    // Helper: Renders progressive multi-pass glowing jagged fractures with smooth continuous sub-segment interpolation
+    function drawFracturePath(pts, progressLimit, isMajor){
+      if (!pts || pts.length < 2 || progressLimit <= 0.001) return;
+      var tLim = clamp(progressLimit, 0, 1);
+      var totalSegments = pts.length - 1;
+      var progressInSegs = tLim * totalSegments;
+      var fullSegs = Math.floor(progressInSegs);
+      var frac = progressInSegs - fullSegs;
 
-    // Crack Branch 2 (Center right downward)
-    if (progressFrac > 0.3){
+      var activePts = [];
+      activePts.push(pts[0]);
+      for (var si = 1; si <= fullSegs; si++){
+        activePts.push(pts[si]);
+      }
+      if (fullSegs < totalSegments && frac > 0.005){
+        var p0 = pts[fullSegs];
+        var p1 = pts[fullSegs + 1];
+        var tipX = p0[0] + (p1[0] - p0[0]) * frac;
+        var tipY = p0[1] + (p1[1] - p0[1]) * frac;
+        activePts.push([tipX, tipY]);
+      }
+      if (activePts.length < 2) return;
+
+      // Localized bullet deflection impact resonance along this fracture
+      var midIdx = Math.floor(activePts.length / 2);
+      var midPt = activePts[midIdx];
+      var fAng = Math.atan2(midPt[1], midPt[0]);
+      var fDiff = Math.abs(Math.atan2(Math.sin(fAng - lastHitAng), Math.cos(fAng - lastHitAng)));
+      var fProx = Math.max(0, 1 - fDiff / Math.PI);
+      var fHitFlash = impactFlash * Math.pow(fProx, 1.8);
+      var pathBaseW = (baseW + fHitFlash * 2.5) * (isMajor ? 1.0 : 0.72);
+
+      // Pass 1: Volumetric Chasm Glow Bleed
+      ctx.strokeStyle = fHitFlash > 0.2 ? 'rgba(255, 255, 255, 0.6)' : glowCol;
+      ctx.lineWidth = pathBaseW * 3.4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.beginPath();
-      ctx.moveTo(10, -eggH * 0.6);
-      ctx.lineTo(eggW * 0.4, -eggH * 0.3);
-      ctx.lineTo(eggW * 0.2, 0);
-      if (progressFrac > 0.6){
-        ctx.lineTo(eggW * 0.5, eggH * 0.35);
-        ctx.lineTo(eggW * 0.15, eggH * 0.65);
+      ctx.moveTo(activePts[0][0], activePts[0][1]);
+      for (var k = 1; k < activePts.length; k++){
+        ctx.lineTo(activePts[k][0], activePts[k][1]);
       }
       ctx.stroke();
-    }
 
-    // Crack Branch 3 (Apex Crown rupture)
-    if (progressFrac > 0.7){
+      // Pass 2: Semi-translucent Recessed Fracture Trench Depth (Preserves Internal Luminescence)
+      if (progressFrac > 0.28){
+        ctx.strokeStyle = 'rgba(8, 2, 18, 0.72)';
+        ctx.lineWidth = pathBaseW * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(activePts[0][0], activePts[0][1]);
+        for (var k = 1; k < activePts.length; k++){
+          ctx.lineTo(activePts[k][0], activePts[k][1]);
+        }
+        ctx.stroke();
+      }
+
+      // Pass 3: Searing Plasma Fissure Stroke
+      ctx.strokeStyle = fHitFlash > 0.4 ? '#ffffff' : crackCol;
+      ctx.lineWidth = pathBaseW * 0.95;
       ctx.beginPath();
-      ctx.moveTo(0, -eggH * 0.95);
-      ctx.lineTo(12, -eggH * 0.8);
-      ctx.lineTo(-8, -eggH * 0.65);
-      ctx.lineTo(0, -eggH * 0.5);
+      ctx.moveTo(activePts[0][0], activePts[0][1]);
+      for (var k = 1; k < activePts.length; k++){
+        ctx.lineTo(activePts[k][0], activePts[k][1]);
+      }
       ctx.stroke();
 
-      for (var spk = 0; spk < 3; spk++){
-        var spkA = Math.random() * TAU;
-        var spkR = rnd(20, 65);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(Math.cos(spkA) * spkR, Math.sin(spkA) * spkR, 2.5, 2.5);
+      // Pass 4: White-Hot Core Lightning Filament
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(0.8, pathBaseW * 0.32);
+      ctx.beginPath();
+      ctx.moveTo(activePts[0][0], activePts[0][1]);
+      for (var k = 1; k < activePts.length; k++){
+        ctx.lineTo(activePts[k][0], activePts[k][1]);
+      }
+      ctx.stroke();
+
+      // Pass 5: Fracture Junction Energy Nodes & Moving Crack Tip Spark
+      for (var k = 0; k < activePts.length; k++){
+        if (k % 2 === 0 || k === activePts.length - 1){
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          var nodeR = (k === activePts.length - 1) ? (pathBaseW * 0.55 + 1.0) : (pathBaseW * 0.40);
+          ctx.arc(activePts[k][0], activePts[k][1], Math.max(1.5, nodeR), 0, TAU);
+          ctx.fill();
+        }
+      }
+    }
+
+    // 1. FAULT LINE ALPHA: Apex-to-Ventral Chasm (Snakes down upper-left flank into core)
+    var faultAlpha = [
+      [-4, -eggH * 0.95],
+      [-eggW * 0.28, -eggH * 0.80],
+      [-eggW * 0.16, -eggH * 0.62],
+      [-eggW * 0.42, -eggH * 0.40],
+      [-eggW * 0.24, -eggH * 0.14],
+      [-eggW * 0.46, eggH * 0.18],
+      [-eggW * 0.20, eggH * 0.50],
+      [-eggW * 0.32, eggH * 0.75]
+    ];
+    drawFracturePath(faultAlpha, (progressFrac - 0.05) / 0.90, true);
+
+    // Alpha Tributary 1 (Upper-Left Crown Temple Split)
+    if (progressFrac > 0.22){
+      var tribA1 = [
+        [-eggW * 0.28, -eggH * 0.80],
+        [-eggW * 0.54, -eggH * 0.70],
+        [-eggW * 0.76, -eggH * 0.52]
+      ];
+      drawFracturePath(tribA1, (progressFrac - 0.22) / 0.62, false);
+    }
+
+    // Alpha Tributary 2 (Mid-Flank Lateral Rupture)
+    if (progressFrac > 0.38){
+      var tribA2 = [
+        [-eggW * 0.42, -eggH * 0.40],
+        [-eggW * 0.68, -eggH * 0.28],
+        [-eggW * 0.86, -eggH * 0.08]
+      ];
+      drawFracturePath(tribA2, (progressFrac - 0.38) / 0.52, false);
+    }
+
+    // Alpha Tributary 3 (Ventral Belly Fork)
+    if (progressFrac > 0.54){
+      var tribA3 = [
+        [-eggW * 0.46, eggH * 0.18],
+        [-eggW * 0.68, eggH * 0.32],
+        [-eggW * 0.55, eggH * 0.58]
+      ];
+      drawFracturePath(tribA3, (progressFrac - 0.54) / 0.42, false);
+    }
+
+    // 2. FAULT LINE BETA: Equatorial Lateral Fault (Right flank and mid-belly)
+    if (progressFrac > 0.15 || impactFlash > 0.2){
+      var faultBeta = [
+        [eggW * 0.10, -eggH * 0.75],
+        [eggW * 0.36, -eggH * 0.54],
+        [eggW * 0.20, -eggH * 0.28],
+        [eggW * 0.55, -eggH * 0.04],
+        [eggW * 0.30, eggH * 0.26],
+        [eggW * 0.50, eggH * 0.52],
+        [eggW * 0.16, eggH * 0.78]
+      ];
+      drawFracturePath(faultBeta, (progressFrac - 0.15) / 0.80, true);
+
+      // Beta Tributary 1 (Upper Shoulder Fork)
+      if (progressFrac > 0.32){
+        var tribB1 = [
+          [eggW * 0.36, -eggH * 0.54],
+          [eggW * 0.66, -eggH * 0.44],
+          [eggW * 0.84, -eggH * 0.24]
+        ];
+        drawFracturePath(tribB1, (progressFrac - 0.32) / 0.56, false);
+      }
+
+      // Beta Tributary 2 (Equatorial Transverse Rupture)
+      if (progressFrac > 0.48){
+        var tribB2 = [
+          [eggW * 0.55, -eggH * 0.04],
+          [eggW * 0.78, eggH * 0.08],
+          [eggW * 0.90, eggH * 0.26]
+        ];
+        drawFracturePath(tribB2, (progressFrac - 0.48) / 0.44, false);
+      }
+
+      // Beta Tributary 3 (Lower Abdominal Spallation Split)
+      if (progressFrac > 0.62){
+        var tribB3 = [
+          [eggW * 0.30, eggH * 0.26],
+          [eggW * 0.58, eggH * 0.38],
+          [eggW * 0.72, eggH * 0.62]
+        ];
+        drawFracturePath(tribB3, (progressFrac - 0.62) / 0.34, false);
+      }
+    }
+
+    // 3. FAULT LINE GAMMA: Crown Sagittal Rupture (Directly over embryo skull & heart)
+    if (progressFrac > 0.50){
+      var faultGamma = [
+        [0, -eggH * 0.98],
+        [8, -eggH * 0.84],
+        [-8, -eggH * 0.68],
+        [10, -eggH * 0.52],
+        [-5, -eggH * 0.35],
+        [4, -eggH * 0.15],
+        [-2, eggH * 0.08]
+      ];
+      drawFracturePath(faultGamma, (progressFrac - 0.50) / 0.46, true);
+
+      // Gamma Tributary 1 (Heart Core Fissure)
+      if (progressFrac > 0.66){
+        var tribG1 = [
+          [4, -eggH * 0.15],
+          [-16, -eggH * 0.05],
+          [-26, eggH * 0.12]
+        ];
+        drawFracturePath(tribG1, (progressFrac - 0.66) / 0.30, false);
+      }
+    }
+
+    // 4. FAULT LINE DELTA: Basal Foundation Rupture (Across bottom cradle plates)
+    if (progressFrac > 0.64){
+      var faultDelta = [
+        [0, eggH * 0.92],
+        [-eggW * 0.24, eggH * 0.80],
+        [eggW * 0.16, eggH * 0.66],
+        [-eggW * 0.14, eggH * 0.50]
+      ];
+      drawFracturePath(faultDelta, (progressFrac - 0.64) / 0.32, true);
+
+      // Delta Tributary 1 (Basal Keel Lateral Split)
+      if (progressFrac > 0.74){
+        var tribD1 = [
+          [-eggW * 0.24, eggH * 0.80],
+          [-eggW * 0.48, eggH * 0.72],
+          [-eggW * 0.62, eggH * 0.58]
+        ];
+        drawFracturePath(tribD1, (progressFrac - 0.74) / 0.24, false);
+      }
+    }
+
+    // 5. High-Energy Inter-Plate Plasma Arcs across the widest chasms
+    if (progressFrac > 0.62 || impactFlash > 0.25){
+      var arcCount = Math.floor(2 + (progressFrac - 0.62) * 9);
+      ctx.lineWidth = 1.5;
+      for (var ai = 0; ai < arcCount; ai++){
+        if (Math.sin(crackPulse * 6 + ai * 2.3) > 0.1){
+          var isWhite = Math.sin(t * 30 + ai * 4) > 0.3;
+          ctx.strokeStyle = isWhite ? '#ffffff' : crackCol;
+          var ax1 = -eggW * 0.44 + Math.sin(ai * 1.5) * 8;
+          var ay1 = -eggH * 0.38 + ai * 18;
+          var ax2 = ax1 + 18 + Math.cos(t * 15 + ai) * 6;
+          var ay2 = ay1 + Math.sin(t * 15 + ai) * 6;
+          var arcMidJitterX = Math.sin(t * 45 + ai * 3.7) * 4;
+          var arcMidJitterY = Math.cos(t * 52 + ai * 4.1) * 4;
+          ctx.beginPath();
+          ctx.moveTo(ax1, ay1);
+          ctx.lineTo((ax1 + ax2) / 2 + arcMidJitterX, (ay1 + ay2) / 2 + arcMidJitterY);
+          ctx.lineTo(ax2, ay2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 6. Escaping Plasma Embers & Spallation Chitin Shards
+    if (progressFrac > 0.70){
+      // Venting Embers
+      var emberCount = Math.floor((progressFrac - 0.68) * 24);
+      ctx.fillStyle = '#ffffff';
+      for (var emi = 0; emi < emberCount; emi++){
+        var emT = (G.t * 3.5 + emi * 0.618) % 1.0;
+        var emX = (Math.sin(emi * 3.7) * eggW * 0.65) + Math.sin(G.t * 4 + emi) * 6;
+        var emY = (eggH * 0.6) - emT * (eggH * 1.4);
+        var emSize = (1 - emT) * 3.2;
+        ctx.globalAlpha = (1 - emT) * 0.9;
+        ctx.fillRect(emX, emY, emSize, emSize);
+      }
+      ctx.globalAlpha = 1;
+
+      // Spallation Chitin Shards (Floating broken shell chips near chasms)
+      var shardCoords = [
+        [-eggW * 0.48, -eggH * 0.28, 7, 5, 0.4],
+        [eggW * 0.42, -eggH * 0.35, 6, 4, -0.3],
+        [-eggW * 0.32, eggH * 0.32, 8, 6, 0.6],
+        [eggW * 0.36, eggH * 0.18, 6, 5, -0.5]
+      ];
+      ctx.fillStyle = '#140526';
+      ctx.strokeStyle = crackCol;
+      ctx.lineWidth = 1.6;
+      for (var shi = 0; shi < shardCoords.length; shi++){
+        var sc = shardCoords[shi];
+        var sFloat = Math.sin(t * 5 + shi * 1.8) * 3;
+        ctx.save();
+        ctx.translate(sc[0] + sFloat, sc[1] + sFloat * 0.5);
+        ctx.rotate(sc[4] + sFloat * 0.05);
+        ctx.beginPath();
+        ctx.moveTo(-sc[2] * 0.5, -sc[3] * 0.5);
+        ctx.lineTo(sc[2] * 0.6, -sc[3] * 0.4);
+        ctx.lineTo(sc[2] * 0.4, sc[3] * 0.5);
+        ctx.lineTo(-sc[2] * 0.5, sc[3] * 0.3);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
       }
     }
     ctx.restore();
@@ -6882,15 +7431,15 @@ function drawTitanEgg(b){
       ctx.translate(rx, ry);
       ctx.rotate(rip.ang);
       ctx.strokeStyle = 'rgba(255, 255, 255, ' + ripAlpha + ')';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.arc(0, 0, rip.r, -Math.PI/2, Math.PI/2);
+      ctx.arc(0, 0, rip.r, -Math.PI / 2, Math.PI / 2);
       ctx.stroke();
 
-      ctx.strokeStyle = 'rgba(53, 240, 255, ' + ripAlpha * 0.8 + ')';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(53, 240, 255, ' + (ripAlpha * 0.85) + ')';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.arc(0, 0, rip.r * 1.5, -Math.PI/2, Math.PI/2);
+      ctx.arc(0, 0, rip.r * 1.5, -Math.PI / 2, Math.PI / 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -6901,14 +7450,14 @@ function drawTitanEgg(b){
   var pillX = bx - pillW / 2;
   var pillY = by - br - 70;
 
-  ctx.fillStyle = 'rgba(5, 7, 18, 0.90)';
+  ctx.fillStyle = 'rgba(5, 7, 18, 0.92)';
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, 8);
   else ctx.rect(pillX, pillY, pillW, pillH);
   ctx.fill();
 
-  ctx.strokeStyle = progressFrac > 0.8 ? '#ff4d6d' : 'rgba(53, 240, 255, 0.65)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = progressFrac > 0.8 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : 'rgba(53, 240, 255, 0.65)');
+  ctx.lineWidth = 1.6;
   ctx.stroke();
 
   // Corner holographic tick marks
@@ -6928,10 +7477,10 @@ function drawTitanEgg(b){
     ctx.stroke();
   }
 
-  drawIcon('egg', pillX + 22, pillY + 26, 16, progressFrac > 0.8 ? '#ff4d6d' : '#35f0ff');
+  drawIcon('egg', pillX + 22, pillY + 26, 16, progressFrac > 0.8 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : '#35f0ff'));
   ctx.textAlign = 'left';
   ctx.font = 'bold 11px ui-monospace,monospace';
-  ctx.fillStyle = progressFrac > 0.8 ? '#ff4d6d' : '#35f0ff';
+  ctx.fillStyle = progressFrac > 0.8 ? '#ff4d6d' : (progressFrac > 0.45 ? '#ffe066' : '#35f0ff');
   ctx.fillText('BIOMECHANICAL EGG INCUBATOR', pillX + 40, pillY + 20);
 
   ctx.font = '10px ui-monospace,monospace';
