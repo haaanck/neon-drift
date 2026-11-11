@@ -870,6 +870,120 @@ function drawMapFeatures(cx, cy){
       drawMineral(mn);
     }
   }
+
+  // 5. Astral Void Rift (Conduit to Sector 2)
+  if (G.astralRift && G.astralRift.active){
+    drawAstralVoidRift(G.astralRift);
+  }
+}
+
+function drawAstralVoidRift(rift){
+  if (!rift || !rift.active) return;
+  var rx = rift.x, ry = rift.y, rr = rift.r || 54;
+  var t = (G ? G.t : 0);
+  ctx.save();
+  ctx.translate(rx, ry);
+
+  // Outer cosmic distortion halo
+  var haloGrd = ctx.createRadialGradient(0, 0, rr * 0.25, 0, 0, rr * 2.2);
+  haloGrd.addColorStop(0, 'rgba(191, 85, 236, 0.45)');
+  haloGrd.addColorStop(0.5, 'rgba(123, 44, 191, 0.22)');
+  haloGrd.addColorStop(1, 'rgba(10, 0, 26, 0)');
+  ctx.fillStyle = haloGrd;
+  ctx.beginPath();
+  ctx.arc(0, 0, rr * 2.2, 0, TAU);
+  ctx.fill();
+
+  // Swirling vortex accretion rings
+  for (var vi = 0; vi < 3; vi++){
+    var vRot = (vi % 2 === 0 ? 1 : -1) * t * (1.8 + vi * 0.6);
+    var vRad = rr * (0.65 + vi * 0.28);
+    ctx.save();
+    ctx.rotate(vRot);
+    ctx.setLineDash([14, 10]);
+    ctx.strokeStyle = vi === 0 ? '#35f0ff' : (vi === 1 ? '#bf55ec' : '#7b2cbf');
+    ctx.lineWidth = 2.5 - vi * 0.5;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, vRad * 1.3, vRad * 0.75, 0, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Event horizon singularity core
+  ctx.beginPath();
+  ctx.arc(0, 0, rr * 0.48, 0, TAU);
+  ctx.fillStyle = '#06000f';
+  ctx.fill();
+  ctx.strokeStyle = '#bf55ec';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Inner pulsing core flare
+  var corePulse = 0.5 + 0.5 * Math.sin(t * 8);
+  ctx.beginPath();
+  ctx.arc(0, 0, rr * 0.22 * (0.8 + corePulse * 0.4), 0, TAU);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  ctx.restore();
+
+  // Floating HUD Callout
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 12px ui-monospace,monospace';
+  ctx.fillStyle = '#bf55ec';
+  ctx.shadowColor = '#bf55ec';
+  ctx.shadowBlur = 8;
+  ctx.fillText('ASTRAL VOID RIFT // CONDUIT TO SECTOR 02', rx, ry - rr - 28);
+  ctx.font = '10px ui-monospace,monospace';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowBlur = 4;
+  ctx.fillText('FLY INTO RIFT OR PRESS [4]', rx, ry - rr - 12);
+  ctx.restore();
+}
+
+function enterSector2(){
+  if (!G) return;
+  G.sector = 2;
+  G.astralRift = null;
+  G.state = 'play';
+  G.victoryDismissed = true;
+  G.victoryTimer = 0;
+  G.dyingBoss = null;
+  G.boss = null;
+  G.ebullets = [];
+  G.vortices = [];
+  G.blackHoles = [];
+  G.teslaMarkers = [];
+
+  if (G.player){
+    G.player.inv = 3.5;
+    G.player.x = ARENA / 2;
+    G.player.y = ARENA / 2;
+    G.player.vx = 0;
+    G.player.vy = 0;
+  }
+
+  G.banner = {
+    t: 4.5,
+    title: 'WARP TRANSIT COMPLETE // SECTOR 02: THE DEEP ASTRAL TRENCH',
+    sub: 'APEX PREDATORS DETECTED - BIO-HAZARD PROTOCOLS ENGAGED'
+  };
+  G.missionToast = {
+    t: 4.5,
+    title: 'WARP TRANSIT COMPLETE // SECTOR 02: THE DEEP ASTRAL TRENCH',
+    sub: 'APEX PREDATORS DETECTED • BIO-HAZARD PROTOCOLS ENGAGED'
+  };
+
+  sound.waveStart();
+  if (sound.teleport) sound.teleport();
+  if (sound.abyssRoar) sound.abyssRoar();
+  if (window.music && music.setMood) music.setMood('incursion');
+
+  shockwave(ARENA / 2, ARENA / 2, '#bf55ec', 600, 6);
+  burst(ARENA / 2, ARENA / 2, '#35f0ff', 60);
+
+  startWave(6);
 }
 
 function resize(){
@@ -882,6 +996,10 @@ function resize(){
   vignette = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.32, W/2, H/2, Math.max(W,H)*0.75);
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
   vignette.addColorStop(1, 'rgba(0,0,0,0.62)');
+  if (typeof G !== 'undefined' && G){
+    if (G.buffTray && G.buffTray.active) G.buffTray.targetY = H - 55;
+    if (G.skillSwapTray && G.skillSwapTray.active) G.skillSwapTray.targetY = H - 55;
+  }
 }
 resize();
 window.addEventListener('resize', resize);
@@ -2458,7 +2576,14 @@ var ENEMY_TYPES = {
   shooter:     { hp:18, spd:50,  r:15, dmg:7,  color:'#b388ff', xp:3, ranged:true },
   splitter:    { hp:24, spd:65,  r:18, dmg:8,  color:'#3ddc97', xp:3, split:2 },
   shard:       { hp:4,  spd:125, r:8,  dmg:4,  color:'#7dffcf', xp:1 },
-  minion_geom: { hp:26, spd:150, r:13, dmg:7,  color:'#00f5d4', xp:2 }
+  minion_geom: { hp:26, spd:150, r:13, dmg:7,  color:'#00f5d4', xp:2 },
+  // Sector 2 Alien Predators
+  carapace:    { hp:310, spd:70,  r:24, dmg:12, color:'#35f0ff', xp:6, isAlien:true },
+  mantis:      { hp:175, spd:170, r:18, dmg:14, color:'#bf55ec', xp:5, isAlien:true },
+  sporepod:    { hp:230, spd:80,  r:21, dmg:10, color:'#ff9f1c', xp:5, isAlien:true },
+  colossus:    { hp:720, spd:58,  r:34, dmg:22, color:'#ff3565', xp:10, isAlien:true },
+  leech:       { hp:45,  spd:210, r:10, dmg:8,  color:'#ff0055', xp:2, isAlien:true },
+  spore:       { hp:30,  spd:40,  r:12, dmg:6,  color:'#ff9f1c', xp:1, isAlien:true }
 };
 
 var UPGRADES = [
@@ -2618,9 +2743,10 @@ function newGame(){
     hudGodModeRect: null,
     pauseGodModeRect: null,
     // Wave state system
+    sector: 1,
     wave:1, waveState:'combat', waveTimer:0, waveTime:0,
     waveTotal:16, waveKills:0, waveSpawned:0, waveSquads:[], waveTitle:'', waveSub:'',
-    waveBossSpawned: false, boss: null, dyingBoss: null, victoryTimer: 0, skillCores: [], vortices: [],
+    waveBossSpawned: false, boss: null, dyingBoss: null, victoryTimer: 0, skillCores: [], vortices: [], astralRift: null,
     playerMissiles: [], teslaArcs: [], orbitalGlaives: [], phantomDecoys: [], quantumRifts: [], empWaves: [],
     skillRectQ: null, skillRect: null, thermitePools: [],
     teslaMarkers: [], blackHoles: [], bossSkillAlert: null, missionToast: null,
@@ -2938,6 +3064,9 @@ window.addEventListener('keydown', function(e){
       G.state = 'title';
       sound.choose();
       return;
+    } else if (G.sector === 1 && (k === '4' || k === 'numpad4')){
+      if (typeof enterSector2 === 'function') enterSector2();
+      return;
     }
   }
   else if (G.state === 'dead'){
@@ -3089,6 +3218,8 @@ function handleUiClick(cx, cy){
           } else if (vb.action === 'title') {
             G.state = 'title';
             sound.choose();
+          } else if (vb.action === 'sector2') {
+            if (typeof enterSector2 === 'function') enterSector2();
           }
           return true;
         }
@@ -3847,6 +3978,17 @@ var BOSS_CATALOG = {
     spd: 92,
     dmg: 28,
     skillName: 'SINGULARITY OMEGA DRIFT'
+  },
+  voracis: {
+    type: 'voracis',
+    name: 'VORACIS THE VOID GARGANTUA',
+    sub: 'Colossal Void Bio-Colossus',
+    r: 92,
+    col: '#ff0055',
+    hp: 13000,
+    spd: 108,
+    dmg: 36,
+    skillName: 'GAPING MAW PLASMA ERUPTION'
   }
 };
 
@@ -3939,6 +4081,31 @@ function spawnBoss(wNum, bossType, forceAwake){
         });
       }
     }
+  } else if (bType === 'voracis'){
+    boss.jawAngle = 0;
+    boss.mawGlow = 0;
+    boss.ribFlex = 0;
+    boss.scytheAngleLeft = 0;
+    boss.scytheAngleRight = 0;
+    boss.scytheSlashT = 0;
+    boss.scytheSlashing = null;
+    boss.scytheTimer = 3.2;
+    boss.rupturedCarapace = false;
+    boss.lungeT = 0;
+    boss.lungeTimer = 4.0;
+    boss.shadowTrail = [];
+    boss.heartbeatTimer = 0.8;
+    boss.bileRotationAngle = 0;
+    boss.spawnLeechTimer = 5.0;
+    boss.tendrils = [];
+    for (var vti = 0; vti < 8; vti++){
+      var vtAnchor = Math.PI - 0.7 + (vti / 7) * 1.4;
+      boss.tendrils.push({
+        baseAngle: vtAnchor,
+        segments: 8,
+        phaseOffset: vti * 0.85
+      });
+    }
   }
 
   G.boss = boss;
@@ -4024,6 +4191,59 @@ function updateBoss(b, dt, p){
     if (window.music && music.setMood) music.setMood('boss_p2');
   }
 
+  // Trigger Phase 2 Enrage & Metamorphosis Transformation for Voracis the Void Gargantua (< 50% HP)
+  if (b.bossType === 'voracis' && isEnraged && !b.phase2){
+    b.phase2 = true;
+    b.phase = 2;
+    b.rupturedCarapace = true;
+    b.color = '#ff0033';
+    b.spd = 145;
+    b.skillName = 'EXTINCTION ACID ROTATION & LEECH BROOD';
+    b.heartbeatTimer = 0.5;
+    b.lungeTimer = 3.2;
+    b.lungeT = 0;
+    b.shadowTrail = [];
+    b.spawnLeechTimer = 4.0;
+    G.shake = 55;
+    G.flash = 1.0;
+    G.vig = 0.55;
+    shockwave(b.x, b.y, '#ff0033', 600, 7);
+    shockwave(b.x, b.y, '#7b2cbf', 420, 5);
+    shockwave(b.x, b.y, '#ffffff', 280, 4);
+    burst(b.x, b.y, '#ff0033', 100);
+    burst(b.x, b.y, '#1a0933', 50);
+    burst(b.x, b.y, '#ffe066', 35);
+    for (var bfi = 0; bfi < 60; bfi++){
+      var bfa = Math.random() * TAU;
+      var bfspd = rnd(150, 480);
+      G.parts.push({
+        x: b.x, y: b.y,
+        vx: Math.cos(bfa) * bfspd, vy: Math.sin(bfa) * bfspd,
+        col: Math.random() < 0.5 ? '#1a0933' : (Math.random() < 0.5 ? '#ff0055' : '#ffffff'),
+        life: rnd(0.8, 2.0),
+        size: rnd(3.5, 7.5)
+      });
+    }
+    for (var li = 0; li < 4; li++){
+      var la = (li / 4) * TAU + rnd(-0.2, 0.2);
+      var ltype = ENEMY_TYPES.leech;
+      G.enemies.push({
+        type: 'leech', r: ltype.r, color: ltype.color, xp: 2,
+        x: b.x + Math.cos(la) * 35, y: b.y + Math.sin(la) * 35,
+        vx: Math.cos(la) * 160, vy: Math.sin(la) * 160, kx: 0, ky: 0,
+        ang: la, spawn: 0, squash: 0, hitAng: 0,
+        hp: ltype.hp, maxhp: ltype.hp, spd: ltype.spd, dmg: ltype.dmg,
+        touchT: 0, shootT: 1, flash: 0, split: 0, ranged: false
+      });
+    }
+    addText(b.x, b.y - b.r - 42, 'FRENZIED METAMORPHOSIS // CARAPACE RUPTURED!', '#ff0033', 24);
+    G.bossSkillAlert = { name: 'PHASE 2: EXTINCTION CATACLYSM', boss: b.name, color: '#ff0033', time: 4.5 };
+    if (sound.abyssRoar) sound.abyssRoar();
+    if (sound.bossWarning) sound.bossWarning();
+    if (sound.surge) sound.surge();
+    if (window.music && music.setMood) music.setMood('boss_p2');
+  }
+
   // --- APEX BOSS ACTIVE SKILL TRIGGER ---
   if (b.skillCd <= 0 && (!b.skillPhase || b.skillPhase === 'ready' || b.skillPhase === 'cooldown')){
     b.skillPhase = 'windup';
@@ -4040,6 +4260,13 @@ function updateBoss(b, dt, p){
       } else {
         b.skillName = 'TITAN VOID HYPER-BEAM';
       }
+    } else if (b.bossType === 'voracis'){
+      if (b.phase2 || isEnraged){
+        b.skillName = 'EXTINCTION ACID ROTATION & LEECH BROOD';
+      } else {
+        b.skillName = 'GAPING MAW PLASMA ERUPTION';
+      }
+      b.bileAngle = Math.atan2(dy, dx);
     }
 
     G.bossSkillAlert = { name: b.skillName, boss: b.name, color: b.color, time: 3.6 };
@@ -4112,6 +4339,10 @@ function updateBoss(b, dt, p){
         b.hyperBeamAng = angLerp(b.hyperBeamAng, targetAng, Math.min(1, dt * 6));
       }
       b.mandibleOpen = Math.min(1, (b.mandibleOpen || 0) + dt * 3);
+    } else if (b.bossType === 'voracis'){
+      b.jawAngle = Math.min(1.25, (b.jawAngle || 0) + dt * 3.5);
+      b.mawGlow = Math.min(1.0, (b.mawGlow || 0) + dt * 3.0);
+      b.ang = angLerp(b.ang, Math.atan2(dy, dx), Math.min(1, dt * 5));
     }
     if (b.skillWindupT <= 0){
       b.skillPhase = 'active';
@@ -4184,6 +4415,41 @@ function updateBoss(b, dt, p){
         shockwave(b.x, b.y, sCol, 380, 6);
         if (sound.skillLaser) sound.skillLaser();
         if (sound.skillNova) sound.skillNova();
+      } else if (b.bossType === 'voracis'){
+        b.skillActiveT = (b.phase2 || isEnraged) ? 3.6 : 2.6;
+        b.jawAngle = 1.25;
+        b.mawGlow = 1.0;
+        var vCol = (b.phase2 || isEnraged) ? '#ff0033' : '#ff0055';
+        shockwave(b.x, b.y, vCol, 380, 6);
+        if (sound.abyssRoar) sound.abyssRoar();
+        if (sound.surge) sound.surge();
+        if (b.phase2 || isEnraged){
+          for (var lk = 0; lk < 3; lk++){
+            var lka = Math.random() * TAU;
+            var ltype2 = ENEMY_TYPES.leech;
+            G.enemies.push({
+              type: 'leech', r: ltype2.r, color: ltype2.color, xp: 2,
+              x: b.x + Math.cos(lka) * 40, y: b.y + Math.sin(lka) * 40,
+              vx: Math.cos(lka) * 180, vy: Math.sin(lka) * 180, kx: 0, ky: 0,
+              ang: lka, spawn: 0, squash: 0, hitAng: 0,
+              hp: ltype2.hp, maxhp: ltype2.hp, spd: ltype2.spd, dmg: ltype2.dmg,
+              touchT: 0, shootT: 1, flash: 0, split: 0, ranged: false
+            });
+          }
+        } else {
+          var baseAng = Math.atan2(dy, dx);
+          for (var pvi = 0; pvi < 7; pvi++){
+            var pSpreadAng = baseAng + (pvi - 3) * 0.22;
+            G.ebullets.push({
+              x: b.x + Math.cos(baseAng) * b.r * 0.8,
+              y: b.y + Math.sin(baseAng) * b.r * 0.8,
+              vx: Math.cos(pSpreadAng) * 320,
+              vy: Math.sin(pSpreadAng) * 320,
+              r: 9.0, dmg: b.dmg * 0.55, life: 3.5, ang: pSpreadAng,
+              col: '#ff0055', kind: 'voracis_plasma', isBossBullet: true
+            });
+          }
+        }
       }
     }
   }
@@ -4197,6 +4463,8 @@ function updateBoss(b, dt, p){
       b.barrierActive = false;
       b.cageActive = false;
       b.mandibleOpen = 0;
+      b.jawAngle = 0;
+      b.mawGlow = 0;
     }
   }
 
@@ -4727,6 +4995,211 @@ function updateBoss(b, dt, p){
       shockwave(b.x, b.y, rCol, 340, 5);
       if (sound.skillNova) sound.skillNova();
     }
+  } else if (b.bossType === 'voracis'){
+    // --- APEX BOSS: VORACIS THE VOID GARGANTUA (The World-Eater) ---
+    var isP2 = (b.phase2 || isEnraged);
+
+    // Heartbeat Dread Audio & Proximity Tension in Phase 2
+    if (isP2){
+      b.heartbeatTimer = (b.heartbeatTimer !== undefined ? b.heartbeatTimer : 0.8) - dt;
+      if (b.heartbeatTimer <= 0){
+        var proxFrac = clamp(d / 720, 0.28, 1.0);
+        b.heartbeatTimer = 0.28 + proxFrac * 0.40;
+        if (sound.heartbeat) sound.heartbeat();
+        G.vig = Math.max(G.vig, 0.28);
+      }
+
+      // Close-range writhing tendril flurry lashing
+      if (d < b.r * 1.45){
+        hurtPlayer(70 * dt, Math.atan2(p.y - b.y, p.x - b.x));
+        if (Math.random() < 0.25){
+          burst(p.x, p.y, '#ff0033', 2);
+          G.vig = Math.max(G.vig, 0.40);
+        }
+      }
+    }
+
+    // Decay phantom shadow afterimages
+    if (b.shadowTrail && b.shadowTrail.length > 0){
+      for (var sti = b.shadowTrail.length - 1; sti >= 0; sti--){
+        b.shadowTrail[sti].a -= dt * 2.5;
+        if (b.shadowTrail[sti].a <= 0) b.shadowTrail.splice(sti, 1);
+      }
+    }
+
+    // Update breathing rib flex
+    b.ribFlex = Math.sin(b.phaseT * 3.5) * 0.14;
+
+    // Raptorial Scythe Cleave Attack Loop
+    b.scytheTimer = (b.scytheTimer !== undefined ? b.scytheTimer : 3.2) - dt;
+    if (b.scytheSlashT > 0){
+      b.scytheSlashT -= dt;
+      if (b.scytheSlashT <= 0) b.scytheSlashing = null;
+    }
+    if (b.scytheTimer <= 0 && b.scytheSlashT <= 0 && b.skillPhase !== 'active'){
+      b.scytheTimer = isP2 ? rnd(2.2, 3.0) : rnd(3.0, 4.2);
+      b.scytheSlashing = Math.random() < 0.5 ? 'left' : 'right';
+      b.scytheSlashT = 0.50;
+      if (sound.surge) sound.surge();
+      // Scythe cleave hit detection on forward arc (180 deg)
+      var pAngleToBoss = Math.atan2(p.y - b.y, p.x - b.x);
+      var angleDiff = Math.abs(angDist(b.ang, pAngleToBoss));
+      if (d < b.r * 1.65 && angleDiff < Math.PI * 0.55){
+        if (p.inv <= 0){
+          hurtPlayer(isP2 ? 45 : 32, pAngleToBoss);
+          burst(p.x, p.y, isP2 ? '#ff0033' : '#ffe066', 8);
+          shockwave(p.x, p.y, isP2 ? '#ff0033' : '#ffe066', 80, 2);
+        } else {
+          // Dodged with timed dash!
+          if (sound.lock) sound.lock();
+          addText(p.x, p.y - 20, 'CLOSE CALL // EVADED!', '#3ddc97', 16);
+        }
+      }
+    }
+
+    // Phase 2 Predatory Swallow Rush (Devouring Lunge)
+    b.lungeT = Math.max(0, (b.lungeT || 0) - dt);
+    if (isP2 && b.skillPhase !== 'active'){
+      b.lungeTimer = (b.lungeTimer !== undefined ? b.lungeTimer : 4.0) - dt;
+      if (b.lungeTimer <= 0 && b.lungeT <= 0){
+        b.lungeT = 0.85;
+        b.lungeTimer = rnd(3.2, 4.6);
+        b.lungeTargetX = p.x;
+        b.lungeTargetY = p.y;
+        b.jawAngle = 1.35;
+        if (sound.abyssRoar) sound.abyssRoar();
+        if (sound.surge) sound.surge();
+        G.shake = Math.max(G.shake, 35);
+        shockwave(b.x, b.y, '#ff0033', 300, 5);
+        burst(b.x, b.y, '#ff0033', 40);
+        addText(b.x, b.y - b.r - 35, 'DEVOURING LUNGE!', '#ff0033', 24);
+      }
+    }
+
+    // Active Skill Phase: Gaping Maw Plasma Eruption or 360-degree Acid Deluge
+    if (b.skillPhase === 'active'){
+      b.jawAngle = 1.25;
+      b.mawGlow = 1.0;
+      if (isP2){
+        // Phase 2: CONTINUOUS 360-DEGREE ROTATING ACID BILE SPRAY
+        b.bileRotationAngle = (b.bileRotationAngle || 0) + dt * 5.4;
+        b.bileTimer = (b.bileTimer || 0.06) - dt;
+        if (b.bileTimer <= 0){
+          b.bileTimer = 0.06;
+          for (var bsi = 0; bsi < 2; bsi++){
+            var ba = b.bileRotationAngle + bsi * Math.PI;
+            G.ebullets.push({
+              x: b.x + Math.cos(ba) * (b.r * 0.75),
+              y: b.y + Math.sin(ba) * (b.r * 0.75),
+              vx: Math.cos(ba) * 380,
+              vy: Math.sin(ba) * 380,
+              r: 7.5, dmg: b.dmg * 0.42,
+              life: 3.2, ang: ba, col: '#a7ff00', kind: 'acid_bile', isBossBullet: true
+            });
+          }
+          if (Math.random() < 0.28){
+            G.thermitePools = G.thermitePools || [];
+            G.thermitePools.push({
+              x: b.x + Math.cos(b.bileRotationAngle) * rnd(80, 240),
+              y: b.y + Math.sin(b.bileRotationAngle) * rnd(80, 240),
+              r: 44, life: 4.5, maxLife: 4.5, isAcid: true
+            });
+          }
+        }
+      } else {
+        // Phase 1: GAPING MAW BIO-PLASMA DELUGE (Periodic curving bio-plasma orbs)
+        b.plasmaBurstTimer = (b.plasmaBurstTimer !== undefined ? b.plasmaBurstTimer : 0.75) - dt;
+        if (b.plasmaBurstTimer <= 0){
+          b.plasmaBurstTimer = 0.75;
+          var curAimA = Math.atan2(dy, dx);
+          for (var pvi = 0; pvi < 5; pvi++){
+            var pSpreadAng = curAimA + (pvi - 2) * 0.22;
+            G.ebullets.push({
+              x: b.x + Math.cos(curAimA) * (b.r * 0.75),
+              y: b.y + Math.sin(curAimA) * (b.r * 0.75),
+              vx: Math.cos(pSpreadAng) * 330,
+              vy: Math.sin(pSpreadAng) * 330,
+              r: 9.0, dmg: b.dmg * 0.50, life: 3.5, ang: pSpreadAng,
+              col: '#ff0055', kind: 'voracis_plasma', isBossBullet: true
+            });
+          }
+          shockwave(b.x, b.y, '#ff0055', 200, 3);
+          if (sound.enemyShoot) sound.enemyShoot();
+        }
+      }
+      // Sinuous steering toward player
+      b.ang = angLerp(b.ang, Math.atan2(dy, dx), Math.min(1, dt * 4.0));
+      b.vx = ux * b.spd * 0.65;
+      b.vy = uy * b.spd * 0.65;
+    } else if (b.lungeT > 0){
+      // Devouring Swallow Rush: 3.2x normal velocity towards target
+      var ldx = (b.lungeTargetX || p.x) - b.x;
+      var ldy = (b.lungeTargetY || p.y) - b.y;
+      var ld = Math.hypot(ldx, ldy) || 1;
+      b.vx = (ldx / ld) * b.spd * 3.2;
+      b.vy = (ldy / ld) * b.spd * 3.2;
+      b.ang = angLerp(b.ang, Math.atan2(ldy, ldx), Math.min(1, dt * 14));
+      b.shadowTrail = b.shadowTrail || [];
+      if (b.shadowTrail.length < 16){
+        b.shadowTrail.push({ x: b.x, y: b.y, ang: b.ang, a: 0.85 });
+      }
+      // Swallow bite hit check on player
+      if (d < b.r + p.r + 14){
+        hurtPlayer(52, Math.atan2(p.y - b.y, p.x - b.x));
+        p.vx += ux * 380;
+        p.vy += uy * 380;
+        G.shake = Math.max(G.shake, 36);
+        burst(p.x, p.y, '#ff0033', 12);
+        shockwave(p.x, p.y, '#ff0033', 110, 3);
+        addText(p.x, p.y - 25, 'DEVOURED!', '#ff0033', 22);
+      }
+    } else {
+      // Normal predatory stalking
+      b.vx = ux * b.spd * (isP2 ? 1.45 : 1.10);
+      b.vy = uy * b.spd * (isP2 ? 1.45 : 1.10);
+      b.ang = angLerp(b.ang, Math.atan2(dy, dx), Math.min(1, dt * (isP2 ? 7.5 : 5.0)));
+    }
+
+    // Phase 2 Parasitic Leech Ejection from Dorsal Vents
+    if (isP2){
+      b.spawnLeechTimer = (b.spawnLeechTimer !== undefined ? b.spawnLeechTimer : 5.0) - dt;
+      if (b.spawnLeechTimer <= 0){
+        b.spawnLeechTimer = rnd(5.5, 7.5);
+        for (var dli = 0; dli < 2; dli++){
+          var dla = Math.random() * TAU;
+          var dltype = ENEMY_TYPES.leech;
+          G.enemies.push({
+            type: 'leech', r: dltype.r, color: dltype.color, xp: 2,
+            x: b.x + Math.cos(dla) * (b.r * 0.4), y: b.y + Math.sin(dla) * (b.r * 0.4),
+            vx: Math.cos(dla) * 190, vy: Math.sin(dla) * 190, kx: 0, ky: 0,
+            ang: dla, spawn: 0, squash: 0, hitAng: 0,
+            hp: dltype.hp, maxhp: dltype.hp, spd: dltype.spd, dmg: dltype.dmg,
+            touchT: 0, shootT: 1, flash: 0, split: 0, ranged: false
+          });
+        }
+        burst(b.x, b.y, '#ff0055', 14);
+        if (sound.enemyShoot) sound.enemyShoot();
+      }
+    }
+
+    // Barbed Tendril Bone Spines Sweep (Attack timer)
+    if (b.attackT <= 0 && b.skillPhase !== 'active'){
+      b.attackT = isP2 ? 0.85 : 1.25;
+      var spineCount = isP2 ? 16 : 10;
+      var spineSpread = isP2 ? 0.75 : 0.55;
+      var spineCol = isP2 ? '#ff0033' : '#bf55ec';
+      fireBossBulletSpread(b, spineCount, spineSpread, isP2 ? 460 : 380, b.dmg * 0.52, spineCol, 'bone_spine');
+    }
+
+    // Radial Bone Shockwave (Special timer)
+    if (b.specialT <= 0 && b.skillPhase !== 'active'){
+      b.specialT = isP2 ? 3.0 : 4.4;
+      var ringCount = isP2 ? 32 : 22;
+      var ringCol = isP2 ? '#ff0033' : '#ff0055';
+      fireBossBulletRing(b, ringCount, 340, b.dmg * 0.48, ringCol, 'bone_spine');
+      shockwave(b.x, b.y, ringCol, 320, 5);
+      if (sound.skillNova) sound.skillNova();
+    }
   }
 }
 
@@ -4737,34 +5210,64 @@ function startWave(wNum){
   G.waveSpawned = 0;
   G.waveTimer = 0;
   updateHighScore();
-  if (!G.boss){
-    spawnBoss(wNum);
-  }
 
-  var waveConfigs = [
-    { total:16, title:'WAVE 1 OF 5: SCOUT VANGUARD', sub:'Eliminate 16 scout drifters • Secure extraction zone' },
-    { total:22, title:'WAVE 2 OF 5: FRACTURE DIVISION', sub:'Splitter chassis detected • Active Skill Core incoming' },
-    { total:28, title:'WAVE 3 OF 5: ARTILLERY PROTOCOL', sub:'Long-range snipers encircling • Evade plasma fire' },
-    { total:34, title:'WAVE 4 OF 5: TITAN BULWARK SIEGE', sub:'Armored war-chassis charging • Skill Core deployed' },
-    { total:40, title:'WAVE 5 OF 5: OVERDRIVE APEX LEGION', sub:'High-intensity invasion • Clear to breach Titan Egg' }
-  ];
-
-  if (G.wave <= 5){
-    var cfg = waveConfigs[G.wave - 1];
-    G.waveTotal = cfg.total;
-    G.waveTitle = cfg.title;
-    G.waveSub = cfg.sub;
+  if (G.sector === 2){
+    var s2Configs = [
+      { total:24, title:'SECTOR 02 // WAVE 6: BROOD CARAPACE INVASION', sub:'Heavy bone plates detected • Penetrate bio-shields' },
+      { total:30, title:'SECTOR 02 // WAVE 7: PHASE-STALKER AMBUSH', sub:'Sub-space cloaking predators • Evade lethal scythe strikes' },
+      { total:36, title:'SECTOR 02 // WAVE 8: BILE SPORE DELUGE', sub:'Living toxic mines deployed • Avoid expanding acid clouds' },
+      { total:42, title:'SECTOR 02 // WAVE 9: HIVE COLOSSUS VANGUARD', sub:'Heavy juggernauts charging • Flank rear exposed weakpoints' },
+      { total:1,  title:'SECTOR 02 // WAVE 10: APEX PREDATOR CONFRONTATION', sub:'VORACIS THE VOID GARGANTUA • SURVIVE BOTH PHASES' }
+    ];
+    var s2Idx = clamp(G.wave - 6, 0, 4);
+    var s2cfg = s2Configs[s2Idx];
+    G.waveTotal = s2cfg.total;
+    G.waveTitle = s2cfg.title;
+    G.waveSub = s2cfg.sub;
     G.missionToast = {
-      t: 4.0,
-      title: cfg.title,
-      sub: cfg.sub
+      t: 4.5,
+      title: s2cfg.title,
+      sub: s2cfg.sub
     };
+    if (G.wave === 10){
+      G.waveState = 'boss';
+      if (G.boss) {
+        var oldBIdx = G.enemies.indexOf(G.boss);
+        if (oldBIdx !== -1) G.enemies.splice(oldBIdx, 1);
+        G.boss = null;
+      }
+      spawnBoss(10, 'voracis', true);
+    }
   } else {
-    G.waveTotal = 1;
-    G.waveTitle = 'APEX CONFRONTATION';
-    G.waveSub = 'Neutralize the Abyss Leviathan';
-    if (G.boss && G.boss.dormant){
-      awakenBoss();
+    if (!G.boss){
+      spawnBoss(wNum);
+    }
+
+    var waveConfigs = [
+      { total:16, title:'WAVE 1 OF 5: SCOUT VANGUARD', sub:'Eliminate 16 scout drifters • Secure extraction zone' },
+      { total:22, title:'WAVE 2 OF 5: FRACTURE DIVISION', sub:'Splitter chassis detected • Active Skill Core incoming' },
+      { total:28, title:'WAVE 3 OF 5: ARTILLERY PROTOCOL', sub:'Long-range snipers encircling • Evade plasma fire' },
+      { total:34, title:'WAVE 4 OF 5: TITAN BULWARK SIEGE', sub:'Armored war-chassis charging • Skill Core deployed' },
+      { total:40, title:'WAVE 5 OF 5: OVERDRIVE APEX LEGION', sub:'High-intensity invasion • Clear to breach Titan Egg' }
+    ];
+
+    if (G.wave <= 5){
+      var cfg = waveConfigs[G.wave - 1];
+      G.waveTotal = cfg.total;
+      G.waveTitle = cfg.title;
+      G.waveSub = cfg.sub;
+      G.missionToast = {
+        t: 4.0,
+        title: cfg.title,
+        sub: cfg.sub
+      };
+    } else {
+      G.waveTotal = 1;
+      G.waveTitle = 'APEX CONFRONTATION';
+      G.waveSub = 'Neutralize the Abyss Leviathan';
+      if (G.boss && G.boss.dormant){
+        awakenBoss();
+      }
     }
   }
 }
@@ -4837,20 +5340,33 @@ function spawnSquad(sq){
 
 function spawnIncursionEnemy(type){
   var p = G && G.player;
-  var w = Math.min(5, (G && G.wave) || 1);
+  var w = (G && G.wave) || 1;
   var pickType = type;
   if (!pickType){
     var roll = Math.random();
-    if (w === 1){
-      pickType = 'drifter';
-    } else if (w === 2){
-      pickType = roll < 0.60 ? 'drifter' : 'splitter';
-    } else if (w === 3){
-      pickType = roll < 0.40 ? 'drifter' : (roll < 0.75 ? 'splitter' : 'shooter');
-    } else if (w === 4){
-      pickType = roll < 0.30 ? 'drifter' : (roll < 0.55 ? 'splitter' : (roll < 0.80 ? 'shooter' : 'brute'));
+    if (G && G.sector === 2){
+      if (w === 6){
+        pickType = roll < 0.60 ? 'carapace' : 'mantis';
+      } else if (w === 7){
+        pickType = roll < 0.50 ? 'mantis' : (roll < 0.80 ? 'sporepod' : 'carapace');
+      } else if (w === 8){
+        pickType = roll < 0.40 ? 'sporepod' : (roll < 0.65 ? 'colossus' : (roll < 0.85 ? 'mantis' : 'carapace'));
+      } else {
+        pickType = roll < 0.30 ? 'colossus' : (roll < 0.55 ? 'sporepod' : (roll < 0.80 ? 'mantis' : 'carapace'));
+      }
     } else {
-      pickType = roll < 0.22 ? 'drifter' : (roll < 0.45 ? 'splitter' : (roll < 0.70 ? 'shooter' : (roll < 0.85 ? 'brute' : 'shard')));
+      var w1 = Math.min(5, w);
+      if (w1 === 1){
+        pickType = 'drifter';
+      } else if (w1 === 2){
+        pickType = roll < 0.60 ? 'drifter' : 'splitter';
+      } else if (w1 === 3){
+        pickType = roll < 0.40 ? 'drifter' : (roll < 0.75 ? 'splitter' : 'shooter');
+      } else if (w1 === 4){
+        pickType = roll < 0.30 ? 'drifter' : (roll < 0.55 ? 'splitter' : (roll < 0.80 ? 'shooter' : 'brute'));
+      } else {
+        pickType = roll < 0.22 ? 'drifter' : (roll < 0.45 ? 'splitter' : (roll < 0.70 ? 'shooter' : (roll < 0.85 ? 'brute' : 'shard')));
+      }
     }
   }
   var vw = W / ZOOM, vh = H / ZOOM;
@@ -5052,6 +5568,17 @@ function killEnemy(e, idx, wasCrit){
       detonated: false
     };
 
+    if (e.bossType === 'abyss'){
+      G.astralRift = {
+        x: e.x,
+        y: e.y,
+        r: 54,
+        active: true,
+        pulse: 0
+      };
+      addText(e.x, e.y - 48, 'ASTRAL VOID RIFT OPENED!', '#bf55ec', 22);
+    }
+
     G.boss = null;
     G.state = 'victory';
     G.victoryTimer = 0;
@@ -5059,6 +5586,28 @@ function killEnemy(e, idx, wasCrit){
     if (window.music && music.setMood) music.setMood('victory');
     updateHighScore();
   } else {
+    if (e.type === 'carapace'){
+      for (var coi = 0; coi < 3; coi++){
+        var coa = (coi / 3) * TAU + Math.random() * 0.4;
+        var cod = rnd(20, 60);
+        G.orbs.push({
+          x: clamp(e.x + Math.cos(coa) * cod, 40, ARENA - 40),
+          y: clamp(e.y + Math.sin(coa) * cod, 40, ARENA - 40),
+          vx: Math.cos(coa) * 120, vy: Math.sin(coa) * 120,
+          val: 8, isGold: false, popTime: 0.1, life: 30, rot: Math.random() * TAU
+        });
+      }
+      burst(e.x, e.y, '#35f0ff', 24);
+      shockwave(e.x, e.y, '#35f0ff', 120, 3);
+    } else if (e.type === 'spore'){
+      G.thermitePools = G.thermitePools || [];
+      G.thermitePools.push({
+        x: e.x, y: e.y, r: 42, life: 4.2, maxLife: 4.2, isAcid: true
+      });
+      burst(e.x, e.y, '#a7ff00', 16);
+      shockwave(e.x, e.y, '#a7ff00', 70, 2);
+    }
+
     if (e.type === 'brute' && Math.random() < 0.20){
       dropRandomSkillCore(e.x, e.y);
       addText(e.x, e.y - e.r - 20, 'SKILL CORE DROPPED!', '#35f0ff', 16);
@@ -5656,15 +6205,28 @@ function update(dt){
     }
   }
 
-  /* Solar Phoenix Thermite Hazard Pools & Electric Pools */
+  /* Solar Phoenix Thermite Hazard Pools & Electric Pools & Acid Pools */
   G.thermitePools = G.thermitePools || [];
   for (var tpi = G.thermitePools.length - 1; tpi >= 0; tpi--){
     var tp = G.thermitePools[tpi];
     tp.life -= dt;
     if (Math.hypot(p.x - tp.x, p.y - tp.y) < p.r + tp.r){
-      hurtPlayer((tp.isElectric ? 16 : 12) * dt, Math.atan2(p.y - tp.y, p.x - tp.x));
+      var poolDmg = tp.isAcid ? 18 : (tp.isElectric ? 16 : 12);
+      hurtPlayer(poolDmg * dt, Math.atan2(p.y - tp.y, p.x - tp.x));
+      if (tp.isAcid){
+        p.vx *= Math.pow(0.35, dt);
+        p.vy *= Math.pow(0.35, dt);
+      }
     }
     if (tp.life <= 0) G.thermitePools.splice(tpi, 1);
+  }
+
+  /* Astral Void Rift Proximity Warp Conduit to Sector 2 */
+  if (G.astralRift && G.astralRift.active && p && G.state === 'play'){
+    var riftDist = Math.hypot(p.x - G.astralRift.x, p.y - G.astralRift.y);
+    if (riftDist < G.astralRift.r + p.r + 14){
+      enterSector2();
+    }
   }
 
   /* Tesla Storm Ground Reticles */
@@ -5958,8 +6520,9 @@ function update(dt){
     sound.shoot();
   }
 
-  /* 5-Wave Tactical Incursion Spawner Director */
-  if (G.mode !== 'training' && G.wave <= 5 && G.waveState === 'combat'){
+  /* Tactical Incursion Spawner Director */
+  var isCombatWave = (G.sector === 2) ? (G.wave >= 6 && G.wave <= 9) : (G.wave <= 5);
+  if (G.mode !== 'training' && isCombatWave && G.waveState === 'combat'){
     if (G.spawnTimer === undefined) G.spawnTimer = 0.4;
     G.spawnTimer -= dt;
 
@@ -5973,19 +6536,31 @@ function update(dt){
       G.spawnTimer = Math.max(0.65, 1.45 - G.wave * 0.12);
       var toSpawn = Math.min(G.waveTotal - (G.waveSpawned || 0), Math.floor(rnd(2, 4)));
 
-      var curW = Math.min(5, G.wave || 1);
       var pickType = 'drifter';
       var roll = Math.random();
-      if (curW === 1){
-        pickType = 'drifter';
-      } else if (curW === 2){
-        pickType = roll < 0.60 ? 'drifter' : 'splitter';
-      } else if (curW === 3){
-        pickType = roll < 0.40 ? 'drifter' : (roll < 0.75 ? 'splitter' : 'shooter');
-      } else if (curW === 4){
-        pickType = roll < 0.30 ? 'drifter' : (roll < 0.55 ? 'splitter' : (roll < 0.80 ? 'shooter' : 'brute'));
+      if (G.sector === 2){
+        if (G.wave === 6){
+          pickType = roll < 0.60 ? 'carapace' : 'mantis';
+        } else if (G.wave === 7){
+          pickType = roll < 0.50 ? 'mantis' : (roll < 0.80 ? 'sporepod' : 'carapace');
+        } else if (G.wave === 8){
+          pickType = roll < 0.40 ? 'sporepod' : (roll < 0.65 ? 'colossus' : (roll < 0.85 ? 'mantis' : 'carapace'));
+        } else {
+          pickType = roll < 0.35 ? 'colossus' : (roll < 0.60 ? 'sporepod' : (roll < 0.80 ? 'mantis' : 'carapace'));
+        }
       } else {
-        pickType = roll < 0.22 ? 'drifter' : (roll < 0.45 ? 'splitter' : (roll < 0.70 ? 'shooter' : (roll < 0.85 ? 'brute' : 'shard')));
+        var curW = Math.min(5, G.wave || 1);
+        if (curW === 1){
+          pickType = 'drifter';
+        } else if (curW === 2){
+          pickType = roll < 0.60 ? 'drifter' : 'splitter';
+        } else if (curW === 3){
+          pickType = roll < 0.40 ? 'drifter' : (roll < 0.75 ? 'splitter' : 'shooter');
+        } else if (curW === 4){
+          pickType = roll < 0.30 ? 'drifter' : (roll < 0.55 ? 'splitter' : (roll < 0.80 ? 'shooter' : 'brute'));
+        } else {
+          pickType = roll < 0.22 ? 'drifter' : (roll < 0.45 ? 'splitter' : (roll < 0.70 ? 'shooter' : (roll < 0.85 ? 'brute' : 'shard')));
+        }
       }
 
       var fRoll = Math.random();
@@ -6010,40 +6585,75 @@ function update(dt){
         shockwave(p.x, p.y, '#3ddc97', 220, 3);
       }
 
-      // Tactical skill core drops on Wave 2 and Wave 4 completion
-      if (G.wave === 2 || G.wave === 4){
-        dropRandomSkillCore(p.x + rnd(-60, 60), p.y + rnd(-60, 60));
-        addText(p.x, p.y - 75, 'TACTICAL SKILL CORE DEPLOYED!', '#35f0ff', 20);
+      // Tactical skill core drops on Sector 1 (Waves 2, 4) and Sector 2 (Waves 7, 9)
+      if (G.sector === 2){
+        if (G.wave === 7 || G.wave === 9){
+          dropRandomSkillCore(p.x + rnd(-60, 60), p.y + rnd(-60, 60));
+          addText(p.x, p.y - 75, 'TACTICAL SKILL CORE DEPLOYED!', '#35f0ff', 20);
+        }
+      } else {
+        if (G.wave === 2 || G.wave === 4){
+          dropRandomSkillCore(p.x + rnd(-60, 60), p.y + rnd(-60, 60));
+          addText(p.x, p.y - 75, 'TACTICAL SKILL CORE DEPLOYED!', '#35f0ff', 20);
+        }
       }
 
-      if (G.wave < 5){
-        addText(p.x, p.y - 25, 'WAVE ' + G.wave + ' CLEARED!', '#ffe066', 26);
-        G.missionToast = {
-          t: 2.8,
-          title: 'WAVE ' + G.wave + ' CLEARED // REPAIRS COMPLETE',
-          sub: 'PREPARE FOR WAVE ' + (G.wave + 1) + ' OF 5'
-        };
+      if (G.sector === 2){
+        if (G.wave < 9){
+          addText(p.x, p.y - 25, 'WAVE ' + G.wave + ' CLEARED!', '#ffe066', 26);
+          G.missionToast = {
+            t: 2.8,
+            title: 'WAVE ' + G.wave + ' CLEARED // REPAIRS COMPLETE',
+            sub: 'PREPARE FOR SECTOR 2 WAVE ' + (G.wave + 1)
+          };
+        } else {
+          addText(p.x, p.y - 25, 'ALL BIO-PREDATOR WAVES CLEARED!', '#ff0033', 28);
+          G.missionToast = {
+            t: 4.2,
+            title: 'BIO-HORDE EXTERMINATED // VOID GARGANTUA AWAKENING',
+            sub: 'PREPARE FOR APEX CONFRONTATION WITH VORACIS'
+          };
+        }
       } else {
-        // Wave 5 finished!
-        addText(p.x, p.y - 25, 'ALL 5 WAVES CLEARED!', '#ffe066', 28);
-        G.missionToast = {
-          t: 4.2,
-          title: 'ALL 5 INCURSIONS REPELLED // TITAN STASIS COMPROMISED',
-          sub: 'BIOMECHANICAL EGG RUPTURING • PREPARE FOR APEX CONFRONTATION'
-        };
+        if (G.wave < 5){
+          addText(p.x, p.y - 25, 'WAVE ' + G.wave + ' CLEARED!', '#ffe066', 26);
+          G.missionToast = {
+            t: 2.8,
+            title: 'WAVE ' + G.wave + ' CLEARED // REPAIRS COMPLETE',
+            sub: 'PREPARE FOR WAVE ' + (G.wave + 1) + ' OF 5'
+          };
+        } else {
+          // Wave 5 finished!
+          addText(p.x, p.y - 25, 'ALL 5 WAVES CLEARED!', '#ffe066', 28);
+          G.missionToast = {
+            t: 4.2,
+            title: 'ALL 5 INCURSIONS REPELLED // TITAN STASIS COMPROMISED',
+            sub: 'BIOMECHANICAL EGG RUPTURING • PREPARE FOR APEX CONFRONTATION'
+          };
+        }
       }
     }
   } else if (G.mode !== 'training' && G.waveState === 'cleared'){
     G.waveTimer -= dt;
     if (G.waveTimer <= 0){
-      if (G.wave < 5){
-        startWave(G.wave + 1);
+      if (G.sector === 2){
+        if (G.wave < 9){
+          startWave(G.wave + 1);
+        } else {
+          G.wave = 10;
+          G.waveState = 'boss';
+          startWave(10);
+        }
       } else {
-        // Awaken Boss
-        G.wave = 6;
-        G.waveState = 'boss';
-        startWave(6);
-        awakenBoss();
+        if (G.wave < 5){
+          startWave(G.wave + 1);
+        } else {
+          // Awaken Boss
+          G.wave = 6;
+          G.waveState = 'boss';
+          startWave(6);
+          awakenBoss();
+        }
       }
     }
   }
@@ -6098,7 +6708,50 @@ function update(dt){
       e.shootT -= enemyDt;
       if (e.shootT <= 0 && d < 620){ e.shootT = 2.2; fireEnemyBullet(e); }
     } else if (!e.isBoss){
-      e.vx = ux*e.spd; e.vy = uy*e.spd;
+      if (e.type === 'colossus'){
+        e.chargeTimer = (e.chargeTimer !== undefined ? e.chargeTimer : 4.0) - enemyDt;
+        if (e.charging > 0){
+          e.charging -= enemyDt;
+          e.vx = Math.cos(e.chargeAng) * 220;
+          e.vy = Math.sin(e.chargeAng) * 220;
+        } else if (e.chargeTimer <= 0 && d < 460){
+          e.chargeTimer = rnd(4.2, 5.8);
+          e.charging = 0.95;
+          e.chargeAng = Math.atan2(dy, dx);
+          shockwave(e.x, e.y, '#ff3565', 70, 2);
+          burst(e.x, e.y, '#ff3565', 10);
+        } else {
+          e.vx = ux * e.spd; e.vy = uy * e.spd;
+        }
+      } else if (e.type === 'mantis'){
+        e.cloaked = (d > 220);
+        e.slashT = (e.slashT !== undefined ? e.slashT : 2.5) - enemyDt;
+        if (e.slashT <= 0 && d < 300){
+          e.slashT = 2.6;
+          fireEnemyBullet(e);
+          burst(e.x, e.y, '#bf55ec', 8);
+        }
+        var mSpd = e.cloaked ? e.spd * 1.25 : e.spd;
+        e.vx = ux * mSpd; e.vy = uy * mSpd;
+      } else if (e.type === 'sporepod'){
+        e.sporeT = (e.sporeT !== undefined ? e.sporeT : 4.0) - enemyDt;
+        if (e.sporeT <= 0 && G.enemies.length < 40){
+          e.sporeT = rnd(4.5, 6.0);
+          var sa = Math.random() * TAU;
+          spawnEnemyUnit('spore', e.x + Math.cos(sa) * 30, e.y + Math.sin(sa) * 30);
+          burst(e.x, e.y, '#ff9f1c', 6);
+        }
+        e.vx = ux * e.spd; e.vy = uy * e.spd;
+      } else if (e.type === 'spore'){
+        if (d < 65){
+          killEnemy(e, i, false);
+          continue;
+        }
+        e.vx = ux * e.spd; e.vy = uy * e.spd;
+      } else {
+        if (e.type === 'carapace') e.shieldR = 75;
+        e.vx = ux*e.spd; e.vy = uy*e.spd;
+      }
     }
     e.kx = (e.kx || 0) * Math.pow(0.0009, dt);
     e.ky = (e.ky || 0) * Math.pow(0.0009, dt);
@@ -6192,6 +6845,42 @@ function update(dt){
           var dmg = b.dmg * (b.crit ? (b.critMult || 2.5) : 1);
           if (p.bossDamageMult && en.isBoss) dmg *= p.bossDamageMult;
           if (hitBossSeg) dmg *= 0.55;
+
+          // Hive Colossus Frontal Armor Plate Deflection vs Dorsal Heart Critical
+          if (en.type === 'colossus'){
+            var colRelHitA = angDist(en.ang, Math.atan2(b.y - en.y, b.x - en.x));
+            if (Math.abs(colRelHitA) < 1.15){
+              // Frontal deflection: 70% damage reduction
+              dmg *= 0.30;
+              burst(b.x, b.y, '#ffffff', 5);
+              shockwave(b.x, b.y, '#ff3565', 28, 2);
+              addText(b.x, b.y - 12, 'DEFLECTED -70%', '#ff3565', 11);
+            } else if (Math.abs(colRelHitA) > 2.1){
+              // Exposed rear dorsal heart: 3.0x critical damage
+              dmg *= 3.0;
+              b.crit = true;
+              burst(b.x, b.y, '#ffe066', 8);
+              shockwave(b.x, b.y, '#ffe066', 45, 2);
+              addText(b.x, b.y - 14, 'DORSAL CRIT x3!', '#ffe066', 15);
+            }
+          }
+
+          // Brood Carapace Bio-Shield Aura Protection for nearby allies
+          if (en.type !== 'carapace' && !en.isBoss){
+            var isCarapaceShielded = false;
+            for (var csi = 0; csi < G.enemies.length; csi++){
+              var ce = G.enemies[csi];
+              if (ce !== en && ce.type === 'carapace' && Math.hypot(ce.x - en.x, ce.y - en.y) < 75){
+                isCarapaceShielded = true;
+                break;
+              }
+            }
+            if (isCarapaceShielded){
+              dmg *= 0.40; // 60% damage reduction
+              burst(b.x, b.y, '#35f0ff', 4);
+              addText(en.x, en.y - en.r - 8, 'BIO-SHIELDED', '#35f0ff', 10);
+            }
+          }
           if (b.crit) en.hitWithCrit = true;
           en.hp -= dmg; en.flash = 1;
           en.squash = Math.min(1, en.squash + (b.crit ? 0.9 : 0.55));
@@ -6276,9 +6965,19 @@ function update(dt){
         continue;
       }
       burst(eb.x, eb.y, '#ff8fd8', 7);
+      if (eb.kind === 'voracis_plasma'){
+        G.thermitePools = G.thermitePools || [];
+        G.thermitePools.push({ x: eb.x, y: eb.y, r: 38, life: 3.5, maxLife: 3.5, isAcid: true });
+      }
       hurtPlayer(eb.dmg); G.ebullets.splice(qi,1); continue;
     }
-    if (eb.life <= 0) G.ebullets.splice(qi, 1);
+    if (eb.life <= 0){
+      if (eb.kind === 'voracis_plasma'){
+        G.thermitePools = G.thermitePools || [];
+        G.thermitePools.push({ x: eb.x, y: eb.y, r: 38, life: 3.5, maxLife: 3.5, isAcid: true });
+      }
+      G.ebullets.splice(qi, 1);
+    }
   }
 
   for (var oi = G.orbs.length - 1; oi >= 0; oi--){
@@ -8279,9 +8978,370 @@ function drawAbyssLeviathan(b){
   }
 }
 
+function drawVoracisBoss(b){
+  var r = b.r || 92;
+  var isP2 = (b.phase === 2 || b.phase2);
+  var col = b.flash > 0 ? '#ffffff' : (isP2 ? '#ff0033' : (b.color || '#ff0055'));
+  var t = b.phaseT || (G ? G.t : 0);
+  var jawSpread = b.jawAngle || 0;
+  var ribFlex = b.ribFlex || 0;
+
+  // 0. Phantom Shadow Trail Afterimages during Predatory Swallow Lunge (Phase 2)
+  if (isP2 && b.shadowTrail && b.shadowTrail.length > 0){
+    for (var sti = 0; sti < b.shadowTrail.length; sti++){
+      var st = b.shadowTrail[sti];
+      ctx.save();
+      ctx.translate(st.x, st.y);
+      ctx.rotate(st.ang);
+      ctx.globalAlpha = st.a * 0.40;
+      ctx.fillStyle = '#10000a';
+      ctx.strokeStyle = 'rgba(255, 0, 51, ' + (st.a * 0.65) + ')';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.95, r * 0.70, 0, 0, TAU);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  ctx.save();
+  ctx.translate(b.x, b.y);
+
+  if (b.squash > 0.01){
+    ctx.rotate(b.hitAng);
+    ctx.scale(1 + b.squash * 0.35, 1 - b.squash * 0.28);
+    ctx.rotate(b.ang - b.hitAng);
+  } else {
+    ctx.rotate(b.ang);
+  }
+
+  var sc = 0.5 + 0.5 * Math.min(1, b.spawn);
+  ctx.scale(sc, sc);
+
+  // --- LAYER 1: WRITHING POSTERIOR TENDRILS (8 Barbed Appendages) ---
+  var tendrilCount = 8;
+  for (var ti = 0; ti < tendrilCount; ti++){
+    var tAnchorA = Math.PI - 0.75 + (ti / (tendrilCount - 1)) * 1.5;
+    var tBaseX = Math.cos(tAnchorA) * (r * 0.65);
+    var tBaseY = Math.sin(tAnchorA) * (r * 0.65);
+    var tPhase = t * (isP2 ? 7.5 : 5.0) + ti * 0.85;
+
+    ctx.save();
+    ctx.strokeStyle = isP2 ? '#ff0055' : '#bf55ec';
+    ctx.lineWidth = Math.max(1.5, (isP2 ? 3.5 : 2.5) * (1 - ti / 12));
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tBaseX, tBaseY);
+
+    var curX = tBaseX, curY = tBaseY;
+    var tSegs = 7;
+    var segLen = (r * (isP2 ? 1.4 : 1.15)) / tSegs;
+    for (var si = 0; si < tSegs; si++){
+      var waveAngle = tAnchorA + Math.sin(tPhase + si * 0.6) * (0.35 + si * 0.08);
+      curX += Math.cos(waveAngle) * segLen;
+      curY += Math.sin(waveAngle) * segLen;
+      ctx.lineTo(curX, curY);
+    }
+    ctx.stroke();
+
+    // Barbed hook spine at tendril tip
+    ctx.fillStyle = isP2 ? '#ff0033' : '#ffe066';
+    ctx.beginPath();
+    ctx.arc(curX, curY, isP2 ? 4.5 : 3.5, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // --- LAYER 2: SEGMENTED RIBBED THORAX & BREATHING CARAPACE ---
+  var ribTiers = 4;
+  for (var ri = 0; ri < ribTiers; ri++){
+    var ribFrac = ri / ribTiers;
+    var ribX = -r * 0.45 + ri * (r * 0.26);
+    var ribSpread = (r * 0.55 + Math.sin(ribFrac * Math.PI) * r * 0.25) * (1 + ribFlex);
+
+    // Glowing ventral organ sacs between the ribs
+    ctx.fillStyle = isP2 ? 'rgba(255, 0, 51, 0.45)' : 'rgba(191, 85, 236, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(ribX, 0, r * 0.14, ribSpread * 0.75, 0, 0, TAU);
+    ctx.fill();
+
+    // Arched chitinous rib bones (left and right)
+    ctx.strokeStyle = isP2 ? '#ff0033' : '#7b2cbf';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(ribX, 0, ribSpread, -Math.PI * 0.45, Math.PI * 0.45, false);
+    ctx.stroke();
+  }
+
+  // --- LAYER 3: RAPTORIAL SCYTHE FORELIMBS (Left & Right) ---
+  var scytheSides = [-1, 1];
+  for (var sci = 0; sci < 2; sci++){
+    var sSide = scytheSides[sci];
+    var isSlashingThis = (b.scytheSlashing === (sSide === -1 ? 'left' : 'right'));
+    var baseScytheA = sSide * 0.42 + (isSlashingThis ? (sSide * 0.95 * Math.sin((0.5 - (b.scytheSlashT || 0)) * Math.PI * 2)) : Math.sin(t * 3.5 + sSide) * 0.08);
+
+    ctx.save();
+    var shoulderX = r * 0.15;
+    var shoulderY = sSide * r * 0.55;
+    ctx.translate(shoulderX, shoulderY);
+    ctx.rotate(baseScytheA);
+
+    // Upper limb segment
+    ctx.strokeStyle = isP2 ? '#ff0033' : '#4a154b';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(r * 0.45, sSide * r * 0.35);
+    ctx.stroke();
+
+    // Elbow joint
+    var elbowX = r * 0.45, elbowY = sSide * r * 0.35;
+    ctx.fillStyle = isP2 ? '#ff0055' : '#ffe066';
+    ctx.beginPath();
+    ctx.arc(elbowX, elbowY, 5, 0, TAU);
+    ctx.fill();
+
+    // Curved razor scythe sickle blade
+    ctx.beginPath();
+    ctx.moveTo(elbowX, elbowY);
+    ctx.quadraticCurveTo(elbowX + r * 0.65, elbowY - sSide * r * 0.15, elbowX + r * 0.75, elbowY + sSide * r * 0.65);
+    ctx.lineTo(elbowX + r * 0.55, elbowY + sSide * r * 0.45);
+    ctx.quadraticCurveTo(elbowX + r * 0.45, elbowY, elbowX, elbowY);
+    ctx.closePath();
+    ctx.fillStyle = isP2 ? 'rgba(255, 0, 51, 0.85)' : 'rgba(26, 9, 51, 0.95)';
+    ctx.fill();
+    ctx.strokeStyle = isP2 ? '#ffffff' : (b.flash > 0 ? '#ffffff' : '#ffe066');
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Scythe blade slash trail flare
+    if (isSlashingThis && b.scytheSlashT > 0){
+      ctx.strokeStyle = isP2 ? 'rgba(255, 0, 51, 0.65)' : 'rgba(255, 224, 102, 0.65)';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.35, -0.4, 0.4, false);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // --- LAYER 4: INNER NIGHTMARE CORE & VISCERA (Phase 2 Metamorphosis) ---
+  if (isP2){
+    var corePulse = Math.sin(t * 12) * 0.12;
+    ctx.save();
+    // Raw visceral bio-core
+    var coreGrd = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r * 0.65);
+    coreGrd.addColorStop(0, '#ffffff');
+    coreGrd.addColorStop(0.3, '#ff0033');
+    coreGrd.addColorStop(0.7, '#7b0022');
+    coreGrd.addColorStop(1, '#1a0008');
+    ctx.fillStyle = coreGrd;
+    ctx.beginPath();
+    ctx.ellipse(r * 0.1, 0, r * 0.55 * (1 + corePulse), r * 0.42 * (1 + corePulse), 0, 0, TAU);
+    ctx.fill();
+
+    // Crawling bio-veins overlay
+    ctx.strokeStyle = 'rgba(255, 143, 216, 0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var vi = 0; vi < 6; vi++){
+      var va = (vi / 6) * TAU + t * 2;
+      var vx = r * 0.1 + Math.cos(va) * (r * 0.35);
+      var vy = Math.sin(va) * (r * 0.28);
+      ctx.moveTo(r * 0.1, 0);
+      ctx.quadraticCurveTo(r * 0.1 + Math.cos(va + 0.5) * r * 0.2, Math.sin(va + 0.5) * r * 0.15, vx, vy);
+    }
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    // Phase 1: Heavy chitinous dorsal shield plates
+    ctx.fillStyle = '#120624';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.65, r * 0.48, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#3c1266';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // --- LAYER 5: ARMORED CRANIAL CARAPACE & MOLTED RUPTURE SHARDS ---
+  if (isP2){
+    var shardOffset = 14 + Math.sin(t * 8) * 3;
+    for (var sdi = -1; sdi <= 1; sdi += 2){
+      ctx.save();
+      ctx.translate(r * 0.25, sdi * (r * 0.45 + shardOffset));
+      ctx.rotate(sdi * 0.25);
+      ctx.beginPath();
+      ctx.moveTo(r * 0.4, 0);
+      ctx.lineTo(-r * 0.3, -sdi * r * 0.25);
+      ctx.lineTo(-r * 0.4, sdi * r * 0.15);
+      ctx.closePath();
+      ctx.fillStyle = '#120624';
+      ctx.fill();
+      ctx.strokeStyle = '#ff0033';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ff8fd8';
+      ctx.beginPath();
+      ctx.arc(0, 0, 2.5, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
+  } else {
+    // Phase 1: Pristine cranial obsidian crown
+    ctx.beginPath();
+    ctx.moveTo(r * 0.75, 0);
+    ctx.lineTo(r * 0.35, -r * 0.55);
+    ctx.lineTo(-r * 0.2, -r * 0.48);
+    ctx.lineTo(-r * 0.1, 0);
+    ctx.lineTo(-r * 0.2, r * 0.48);
+    ctx.lineTo(r * 0.35, r * 0.55);
+    ctx.closePath();
+    ctx.fillStyle = '#18092e';
+    ctx.fill();
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // --- LAYER 6: ARTICULATED TRIPLE-HINGED MANDIBLES & GAPING MAW ---
+  var maxJawA = isP2 ? 0.95 : 0.65;
+  var curJawA = Math.max(0.12, jawSpread * maxJawA);
+
+  // A. Inner Maw Cavern & Plasma Throat Singularity
+  ctx.save();
+  var mawGrd = ctx.createRadialGradient(r * 0.45, 0, 4, r * 0.45, 0, r * 0.55);
+  var mawCoreCol = (b.skillPhase === 'active' && isP2) ? '#a7ff00' : (isP2 ? '#ff0033' : '#ff0055');
+  mawGrd.addColorStop(0, '#ffffff');
+  mawGrd.addColorStop(0.35, mawCoreCol);
+  mawGrd.addColorStop(0.85, 'rgba(16, 0, 24, 0.9)');
+  mawGrd.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  ctx.fillStyle = mawGrd;
+  ctx.beginPath();
+  ctx.ellipse(r * 0.45, 0, r * 0.42 * (1 + jawSpread * 0.5), r * 0.34 * (1 + jawSpread * 0.8), 0, 0, TAU);
+  ctx.fill();
+
+  // Razor needle fangs lining inner maw (especially terrifying in Phase 2)
+  var fangCount = isP2 ? 14 : 8;
+  ctx.fillStyle = '#ffffff';
+  for (var fi = 0; fi < fangCount; fi++){
+    var fa = -Math.PI * 0.45 + (fi / (fangCount - 1)) * Math.PI * 0.9;
+    var fx = r * 0.45 + Math.cos(fa) * (r * 0.36);
+    var fy = Math.sin(fa) * (r * 0.28);
+    var tipX = fx - Math.cos(fa) * (isP2 ? 14 : 9);
+    var tipY = fy - Math.sin(fa) * (isP2 ? 14 : 9);
+    ctx.beginPath();
+    ctx.moveTo(fx - 2, fy);
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(fx + 2, fy);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // B. Left Mandible (Sickle jaw, rotates outward by -curJawA)
+  ctx.save();
+  ctx.translate(r * 0.35, -r * 0.30);
+  ctx.rotate(-curJawA);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(r * 0.55, -r * 0.25, r * 0.75, r * 0.12);
+  ctx.lineTo(r * 0.50, r * 0.08);
+  ctx.quadraticCurveTo(r * 0.35, -r * 0.08, 0, 0);
+  ctx.closePath();
+  ctx.fillStyle = isP2 ? '#26000c' : '#1d0c38';
+  ctx.fill();
+  ctx.strokeStyle = isP2 ? '#ff0033' : '#bf55ec';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  for (var jti = 0; jti < 4; jti++){
+    var jtx = r * 0.22 + jti * (r * 0.12);
+    var jty = -r * 0.04 + jti * 3;
+    ctx.fillRect(jtx, jty, 3, 4);
+  }
+  ctx.restore();
+
+  // C. Right Mandible (Sickle jaw, rotates outward by +curJawA)
+  ctx.save();
+  ctx.translate(r * 0.35, r * 0.30);
+  ctx.rotate(curJawA);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(r * 0.55, r * 0.25, r * 0.75, -r * 0.12);
+  ctx.lineTo(r * 0.50, -r * 0.08);
+  ctx.quadraticCurveTo(r * 0.35, r * 0.08, 0, 0);
+  ctx.closePath();
+  ctx.fillStyle = isP2 ? '#26000c' : '#1d0c38';
+  ctx.fill();
+  ctx.strokeStyle = isP2 ? '#ff0033' : '#bf55ec';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  for (var jti2 = 0; jti2 < 4; jti2++){
+    var jtx2 = r * 0.22 + jti2 * (r * 0.12);
+    var jty2 = r * 0.04 - jti2 * 3;
+    ctx.fillRect(jtx2, jty2, 3, -4);
+  }
+  ctx.restore();
+
+  // D. Upper Cranial Dorsal Mandible / Horn Plate
+  ctx.beginPath();
+  ctx.moveTo(r * 0.85, 0);
+  ctx.lineTo(r * 0.45, -r * 0.18);
+  ctx.lineTo(r * 0.30, 0);
+  ctx.lineTo(r * 0.45, r * 0.18);
+  ctx.closePath();
+  ctx.fillStyle = isP2 ? '#ff0033' : '#e0aaff';
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // --- LAYER 7: 8 PULSING COMPOUND OCULAR NODES ---
+  var eyePositions = [
+    { x: r * 0.38, y: -r * 0.36, r: 6.5 },
+    { x: r * 0.26, y: -r * 0.44, r: 5.5 },
+    { x: r * 0.14, y: -r * 0.48, r: 4.5 },
+    { x: r * 0.02, y: -r * 0.48, r: 4.0 },
+    { x: r * 0.38, y: r * 0.36, r: 6.5 },
+    { x: r * 0.26, y: r * 0.44, r: 5.5 },
+    { x: r * 0.14, y: r * 0.48, r: 4.5 },
+    { x: r * 0.02, y: r * 0.48, r: 4.0 }
+  ];
+  for (var ei = 0; ei < eyePositions.length; ei++){
+    var ep = eyePositions[ei];
+    var eyePulse = Math.sin(t * (isP2 ? 14 : 7) + ei) * 0.2;
+    var eyeRad = ep.r * (1 + eyePulse);
+
+    ctx.beginPath();
+    ctx.arc(ep.x, ep.y, eyeRad * 1.3, 0, TAU);
+    ctx.fillStyle = isP2 ? 'rgba(255, 0, 51, 0.4)' : 'rgba(255, 224, 102, 0.4)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(ep.x, ep.y, eyeRad, 0, TAU);
+    ctx.fillStyle = isP2 ? '#ff0033' : '#ffe066';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(ep.x + 1, ep.y, eyeRad * 0.4, 0, TAU);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 function drawBossModel(b){
   if (b.bossType === 'abyss'){
     drawAbyssLeviathan(b);
+    return;
+  }
+  if (b.bossType === 'voracis'){
+    drawVoracisBoss(b);
     return;
   }
   ctx.save();
@@ -9576,6 +10636,282 @@ function drawEnemyModel(e){
       ctx.restore();
       break;
 
+    case 'carapace':
+      // Brood Carapace: Ancient heavily-plated trilobite / horseshoe organism
+      // Protective living aura ring
+      ctx.save();
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = -t * 14;
+      ctx.strokeStyle = 'rgba(53, 240, 255, 0.42)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(0, 0, 75, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+
+      // Ventral twitching legs (3 pairs)
+      ctx.strokeStyle = '#1a535c';
+      ctx.lineWidth = 2;
+      for (var lgi = -1; lgi <= 1; lgi += 2){
+        for (var lgs = 0; lgs < 3; lgs++){
+          var lgx = -r * 0.3 + lgs * (r * 0.35);
+          var legKick = Math.sin(t * 14 + lgs + lgi) * (r * 0.2);
+          ctx.beginPath();
+          ctx.moveTo(lgx, lgi * r * 0.45);
+          ctx.lineTo(lgx - r * 0.15, lgi * (r * 0.85 + legKick));
+          ctx.stroke();
+        }
+      }
+
+      // Tiered obsidian shell plates (3 arched segments)
+      var cSegments = [
+        { x: -r * 0.45, w: r * 0.55, h: r * 0.65 },
+        { x: -r * 0.15, w: r * 0.65, h: r * 0.85 },
+        { x: r * 0.25,  w: r * 0.70, h: r * 0.75 }
+      ];
+      for (var csi = 0; csi < cSegments.length; csi++){
+        var cseg = cSegments[csi];
+        ctx.beginPath();
+        ctx.ellipse(cseg.x, 0, cseg.w * 0.5, cseg.h * 0.5, 0, 0, TAU);
+        ctx.fillStyle = csi === 2 ? '#0f2b38' : '#081720';
+        ctx.fill();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Ventral glowing cyan respiratory gills
+      ctx.fillStyle = '#35f0ff';
+      for (var gli = -1; gli <= 1; gli += 2){
+        ctx.beginPath();
+        ctx.arc(r * 0.2, gli * r * 0.28, 3, 0, TAU);
+        ctx.fill();
+      }
+      break;
+
+    case 'mantis':
+      // Phase-Stalker Mantis: Sinuous bio-hunter with razor scythes & vibrating wings
+      if (e.cloaked){
+        ctx.globalAlpha = 0.30 + Math.sin(t * 12 + e.x) * 0.15;
+      }
+
+      // Quad fluttering translucent insectoid wings
+      var wingSpread = Math.sin(t * 36) * 0.45;
+      ctx.save();
+      for (var wi2 = -1; wi2 <= 1; wi2 += 2){
+        ctx.save();
+        ctx.translate(-r * 0.2, wi2 * r * 0.25);
+        ctx.rotate(wi2 * (0.8 + wingSpread));
+        ctx.fillStyle = 'rgba(191, 85, 236, 0.35)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(r * 0.3, 0, r * 0.65, r * 0.22, 0, 0, TAU);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // Slender chitinous thorax & abdomen
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.35, 0, r * 0.55, r * 0.28, 0, 0, TAU);
+      ctx.fillStyle = '#1c0a2e';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // Triangular cranial plate
+      ctx.beginPath();
+      ctx.moveTo(r * 0.85, 0);
+      ctx.lineTo(r * 0.15, -r * 0.45);
+      ctx.lineTo(r * 0.15, r * 0.45);
+      ctx.closePath();
+      ctx.fillStyle = '#2d0f48';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Compound ocular nodes (glowing violet)
+      ctx.fillStyle = '#e0aaff';
+      ctx.fillRect(r * 0.4, -r * 0.35, 3, 3);
+      ctx.fillRect(r * 0.4, r * 0.30, 3, 3);
+
+      // Forward raptorial scythe arms
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      for (var msi = -1; msi <= 1; msi += 2){
+        ctx.beginPath();
+        ctx.moveTo(r * 0.2, msi * r * 0.35);
+        ctx.lineTo(r * 0.65, msi * r * 0.65);
+        ctx.lineTo(r * 0.95, msi * r * 0.2);
+        ctx.stroke();
+      }
+      break;
+
+    case 'sporepod':
+      // Bile Spore Pod: Floating organic jellyfish medusa hazard spawner
+      var podHeave = Math.sin(t * 4.5 + e.x) * 0.14;
+
+      // Trailing stinging bioluminescent tendrils (5 tentacles)
+      ctx.strokeStyle = '#ff9f1c';
+      ctx.lineWidth = 1.5;
+      for (var spti = 0; spti < 5; spti++){
+        var tYOffset = -r * 0.5 + (spti / 4) * r;
+        var tPhase2 = t * 7 + spti * 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.3, tYOffset);
+        var tEnd1X = -r * 0.7 + Math.sin(tPhase2) * (r * 0.25);
+        var tEnd1Y = tYOffset + Math.cos(tPhase2) * (r * 0.15);
+        var tEnd2X = -r * 1.25 + Math.sin(tPhase2 + 1) * (r * 0.35);
+        var tEnd2Y = tYOffset + Math.cos(tPhase2 + 1) * (r * 0.25);
+        ctx.quadraticCurveTo(tEnd1X, tEnd1Y, tEnd2X, tEnd2Y);
+        ctx.stroke();
+      }
+
+      // Translucent pulsing bell dome
+      ctx.beginPath();
+      ctx.arc(r * 0.1, 0, r * (0.85 + podHeave), -Math.PI * 0.5, Math.PI * 0.5, false);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 159, 28, 0.35)';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Central glowing bio-acid gland sac
+      var glandPulse = Math.sin(t * 8) * 0.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.38 * (1 + glandPulse), 0, TAU);
+      ctx.fillStyle = '#a7ff00';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.18, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      break;
+
+    case 'colossus':
+      // Hive Colossus: Super-heavy horned bio-tank juggernaut
+      // 4 heavy muscular limbs
+      ctx.strokeStyle = '#4a0e1c';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      for (var cli = -1; cli <= 1; cli += 2){
+        for (var cls = -1; cls <= 1; cls += 2){
+          var limbLegX = cls * r * 0.45;
+          var limbLegY = cli * r * 0.55;
+          var limbFootX = limbLegX + cls * r * 0.35;
+          var limbFootY = cli * (r * 0.85 + Math.sin(t * 12 + cls) * 4);
+          ctx.beginPath();
+          ctx.moveTo(limbLegX, limbLegY);
+          ctx.lineTo(limbFootX, limbFootY);
+          ctx.stroke();
+        }
+      }
+
+      // Heavy armored torso
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.75, r * 0.65, 0, 0, TAU);
+      ctx.fillStyle = '#1e050c';
+      ctx.fill();
+      ctx.strokeStyle = '#5a1222';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Frontal heavy horned cranial bone plate (deflects 70% damage)
+      ctx.beginPath();
+      ctx.moveTo(r * 0.95, 0);
+      ctx.lineTo(r * 0.45, -r * 0.85);
+      ctx.lineTo(r * 0.1, -r * 0.65);
+      ctx.lineTo(r * 0.25, 0);
+      ctx.lineTo(r * 0.1, r * 0.65);
+      ctx.lineTo(r * 0.45, r * 0.85);
+      ctx.closePath();
+      ctx.fillStyle = '#3a0814';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+
+      // Pair of forward curved horns
+      ctx.strokeStyle = '#ffe066';
+      ctx.lineWidth = 3;
+      for (var hni = -1; hni <= 1; hni += 2){
+        ctx.beginPath();
+        ctx.moveTo(r * 0.45, hni * r * 0.75);
+        ctx.quadraticCurveTo(r * 0.85, hni * r * 0.95, r * 1.15, hni * r * 0.60);
+        ctx.stroke();
+      }
+
+      // Exposed rear dorsal heart / vulnerable core (3.0x crit spot!)
+      var heartPulse = Math.sin(t * 10) * 0.18;
+      ctx.beginPath();
+      ctx.arc(-r * 0.48, 0, r * 0.32 * (1 + heartPulse), 0, TAU);
+      ctx.fillStyle = '#ff0055';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-r * 0.48, 0, r * 0.15, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      break;
+
+    case 'leech':
+      // Parasitic Leech Drone: Sinuous squirming eel horror
+      ctx.beginPath();
+      ctx.moveTo(r * 0.9, 0);
+      for (var lsi = 1; lsi <= 5; lsi++){
+        var lx = r * 0.9 - lsi * (r * 0.36);
+        var ly = Math.sin(t * 18 - lsi * 0.9) * (r * 0.45);
+        ctx.lineTo(lx, ly);
+      }
+      ctx.strokeStyle = col;
+      ctx.lineWidth = Math.max(2, r * 0.45);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Circular toothy maw
+      ctx.beginPath();
+      ctx.arc(r * 0.8, 0, r * 0.45, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(r * 0.8, 0, r * 0.25, 0, TAU);
+      ctx.fillStyle = '#2b0008';
+      ctx.fill();
+      break;
+
+    case 'spore':
+      // Living Acid Spore: Floating pulsating hazard bulb
+      var spPulse = Math.sin(t * 10 + e.x) * 0.15;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * (0.85 + spPulse), 0, TAU);
+      ctx.fillStyle = 'rgba(255, 159, 28, 0.45)';
+      ctx.fill();
+      ctx.strokeStyle = '#a7ff00';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Core toxic droplet
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.42, 0, TAU);
+      ctx.fillStyle = '#a7ff00';
+      ctx.fill();
+
+      // 3 twitching flagella
+      ctx.strokeStyle = 'rgba(167, 255, 0, 0.65)';
+      ctx.lineWidth = 1.2;
+      for (var fli = 0; fli < 3; fli++){
+        var fla = Math.PI - 0.4 + fli * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(fla) * r * 0.8, Math.sin(fla) * r * 0.8);
+        ctx.lineTo(Math.cos(fla) * r * 1.5 + Math.sin(t * 14 + fli) * 3, Math.sin(fla) * r * 1.5);
+        ctx.stroke();
+      }
+      break;
+
     default:
       // Robust Fallback Vector Fighter (ensures no entity is ever invisible)
       ctx.beginPath();
@@ -10476,22 +11812,95 @@ function drawPlayer(){
     ctx.lineWidth = 1.5; ctx.stroke();
   }
 
-  /* Low-Hull Tactical Hazard Pulse (Peripheral Vision Warning) */
-  if (p.hp / p.maxhp < 0.35 && G.state === 'play'){
+  /* Diegetic Player Tactical Hazard Ring & Proximity Threat Monitor */
+  if (G.state === 'play'){
     ctx.save();
-    var warnPulse = 0.45 + Math.sin(G.t * 12) * 0.35;
-    ctx.strokeStyle = 'rgba(255, 77, 109, ' + warnPulse + ')';
-    ctx.lineWidth = 1.6;
+    var isLowHull = (p.hp / p.maxhp < 0.35);
+    var warnPulse = isLowHull ? (0.55 + Math.sin(G.t * 12) * 0.40) : 0.25;
+    var baseRingCol = isLowHull ? 'rgba(255, 77, 109, ' + warnPulse + ')' : 'rgba(53, 240, 255, 0.20)';
+
+    // 1. Diegetic Tactical Orientation Ring
+    var ringR = r * 1.95;
+    ctx.strokeStyle = baseRingCol;
+    ctx.lineWidth = isLowHull ? 1.6 : 1.0;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, r * 1.85 + Math.sin(G.t * 8) * 2, 0, TAU);
+    ctx.arc(p.x, p.y, ringR, 0, TAU);
     ctx.stroke();
-    for (var hti = 0; hti < 3; hti++){
-      var hta = G.t * 4 + hti * (TAU / 3);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 2.1, hta - 0.25, hta + 0.25);
-      ctx.strokeStyle = 'rgba(255, 77, 109, ' + (warnPulse * 1.2) + ')';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+
+    // 2. Tactical Compass Tick Marks with Directional Forward Heading Chevron
+    var tickLen = isLowHull ? 4.5 : 3.0;
+    ctx.strokeStyle = isLowHull ? '#ff4d6d' : 'rgba(53, 240, 255, 0.45)';
+    ctx.lineWidth = 1.2;
+    for (var cti = 0; cti < 4; cti++){
+      var cta = p.aim + cti * (TAU / 4);
+      if (cti === 0){
+        var fwdTipX = p.x + Math.cos(cta) * (ringR + tickLen + 3);
+        var fwdTipY = p.y + Math.sin(cta) * (ringR + tickLen + 3);
+        var fwdLeftX = p.x + Math.cos(cta - 0.12) * (ringR - 1);
+        var fwdLeftY = p.y + Math.sin(cta - 0.12) * (ringR - 1);
+        var fwdRightX = p.x + Math.cos(cta + 0.12) * (ringR - 1);
+        var fwdRightY = p.y + Math.sin(cta + 0.12) * (ringR - 1);
+        ctx.beginPath();
+        ctx.moveTo(fwdLeftX, fwdLeftY);
+        ctx.lineTo(fwdTipX, fwdTipY);
+        ctx.lineTo(fwdRightX, fwdRightY);
+        ctx.stroke();
+      } else {
+        var cx1 = p.x + Math.cos(cta) * (ringR - tickLen);
+        var cy1 = p.y + Math.sin(cta) * (ringR - tickLen);
+        var cx2 = p.x + Math.cos(cta) * (ringR + tickLen);
+        var cy2 = p.y + Math.sin(cta) * (ringR + tickLen);
+        ctx.beginPath();
+        ctx.moveTo(cx1, cy1);
+        ctx.lineTo(cx2, cy2);
+        ctx.stroke();
+      }
+    }
+
+    // 3. Directional Proximity Threat Wedges (Sorted Nearest & Boss Priority < 320px)
+    if (G.enemies && G.enemies.length > 0){
+      var nearHostiles = [];
+      for (var eni = 0; eni < G.enemies.length; eni++){
+        var envObj = G.enemies[eni];
+        if (!envObj || envObj.hp <= 0) continue;
+        var endx = envObj.x - p.x;
+        var endy = envObj.y - p.y;
+        var endist = Math.hypot(endx, endy);
+        var maxAlertDist = envObj.isBoss ? 500 : 320;
+        if (endist < maxAlertDist){
+          nearHostiles.push({ obj: envObj, dist: endist, dx: endx, dy: endy, isBoss: !!envObj.isBoss });
+        }
+      }
+      if (nearHostiles.length > 0){
+        nearHostiles.sort(function(a, b){
+          if (a.isBoss && !b.isBoss) return -1;
+          if (!a.isBoss && b.isBoss) return 1;
+          return a.dist - b.dist;
+        });
+        var alertMax = Math.min(4, nearHostiles.length);
+        for (var thi = 0; thi < alertMax; thi++){
+          var th = nearHostiles[thi];
+          var threatAng = Math.atan2(th.dy, th.dx);
+          var threatIntensity = 1 - (th.dist / 320);
+          ctx.strokeStyle = th.isBoss ? '#ff0055' : 'rgba(255, 100, 100, ' + (0.45 + threatIntensity * 0.5) + ')';
+          ctx.lineWidth = th.isBoss ? 2.8 : 1.8;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, ringR + 3, threatAng - 0.22, threatAng + 0.22);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 4. Critical Low-Hull Rotating Chevron Alert Brackets
+    if (isLowHull){
+      for (var hti = 0; hti < 3; hti++){
+        var hta = G.t * 4 + hti * (TAU / 3);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, ringR + 5, hta - 0.25, hta + 0.25);
+        ctx.strokeStyle = 'rgba(255, 77, 109, ' + (warnPulse * 1.2) + ')';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }
@@ -10767,10 +12176,11 @@ function render(){
       var tpAlpha = Math.min(1, tp.life / 0.8) * 0.75;
       var tpPulse = 1 + Math.sin(G.t * 8 + tp.x) * 0.06;
       var curR = tp.r * tpPulse;
+      var isAcid = !!tp.isAcid;
       var isElec = !!tp.isElectric;
-      var mainCol = isElec ? '#35f0ff' : '#ff5400';
-      var edgeCol = isElec ? '#ffffff' : '#ffe066';
-      var rbgVal = isElec ? '53, 240, 255' : '255, 84, 0';
+      var mainCol = isAcid ? '#a7ff00' : (isElec ? '#35f0ff' : '#ff5400');
+      var edgeCol = isAcid ? '#d4ff00' : (isElec ? '#ffffff' : '#ffe066');
+      var rbgVal = isAcid ? '167, 255, 0' : (isElec ? '53, 240, 255' : '255, 84, 0');
 
       ctx.beginPath();
       ctx.arc(tp.x, tp.y, curR * 1.25, 0, TAU);
@@ -11256,6 +12666,71 @@ function render(){
       ctx.lineTo(10, 0);
       ctx.lineTo(8, 4);
       ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (k === 'acid_bile'){
+      // Sizzling Virulent Bio-Acid Globule
+      ctx.save();
+      ctx.translate(eu.x, eu.y);
+      var ar = eu.r || 7.5;
+      var aRot = G.t * 8 + eb;
+      ctx.fillStyle = 'rgba(167, 255, 0, 0.35)';
+      ctx.beginPath();
+      ctx.arc(0, 0, ar * 1.35 + Math.sin(aRot) * 1.5, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#a7ff00';
+      ctx.strokeStyle = '#d4ff00';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, ar, 0, TAU);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, ar * 0.4, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    } else if (k === 'bone_spine'){
+      // Barbed Organic Bone Spine / Chitin Dart
+      ctx.save();
+      ctx.translate(eu.x, eu.y);
+      ctx.rotate(eu.ang);
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(2, -3.5);
+      ctx.lineTo(-10, -2);
+      ctx.lineTo(-14, 0);
+      ctx.lineTo(-10, 2);
+      ctx.lineTo(2, 3.5);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(0, -3); ctx.lineTo(-4, -6);
+      ctx.moveTo(0, 3); ctx.lineTo(-4, 6);
+      ctx.stroke();
+      ctx.restore();
+    } else if (k === 'voracis_plasma'){
+      // Undulating Globular Bio-Plasma Singularity
+      ctx.save();
+      ctx.translate(eu.x, eu.y);
+      var pr = eu.r || 9.0;
+      var pRot = G.t * 5 + eb * 0.8;
+      ctx.strokeStyle = 'rgba(255, 0, 85, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, pr * 1.35 + Math.sin(pRot * 2) * 2, 0, TAU);
+      ctx.stroke();
+      var pGrd = ctx.createRadialGradient(0, 0, 1, 0, 0, pr);
+      pGrd.addColorStop(0, '#ffffff');
+      pGrd.addColorStop(0.4, '#ff0055');
+      pGrd.addColorStop(1, '#3b0014');
+      ctx.fillStyle = pGrd;
+      ctx.beginPath();
+      ctx.arc(0, 0, pr, 0, TAU);
       ctx.fill();
       ctx.restore();
     } else {
@@ -12065,6 +13540,17 @@ function render(){
     ctx.fillRect(0, 0, W, H);
   }
 
+  /* Phase 2 Bio-Nightmare Voracis Void Gargantua Vignette */
+  if (G.boss && (G.boss.phase2 || G.boss.phase === 2) && G.boss.hp > 0 && G.boss.bossType === 'voracis'){
+    var vpPulse = 0.5 + 0.5 * Math.sin(G.t * 8.5);
+    var voracisVigGrad = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.20, W/2, H/2, Math.max(W,H)*0.78);
+    voracisVigGrad.addColorStop(0, 'rgba(40, 0, 10, 0)');
+    voracisVigGrad.addColorStop(0.55, 'rgba(140, 0, 35, ' + (0.16 + vpPulse * 0.12) + ')');
+    voracisVigGrad.addColorStop(1.0, 'rgba(30, 0, 8, ' + (0.62 + vpPulse * 0.24) + ')');
+    ctx.fillStyle = voracisVigGrad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
   /* damage vignette */
   var lowHp = p.hp / p.maxhp;
   var pulse = lowHp < 0.35 ? (0.35 - lowHp) * (0.7 + Math.sin(G.t*7)*0.3) : 0;
@@ -12096,14 +13582,15 @@ function render(){
 function drawMinimap(){
   var mw = 114, mh = 114;
   var mx = W - mw - 20, my = Math.round((H - mh - 16) / 2);
+  var panelH = mh + 26;
   var p = G.player;
   if (!p) return;
 
   ctx.save();
-  ctx.fillStyle = 'rgba(5, 6, 14, 0.85)';
+  ctx.fillStyle = 'rgba(5, 6, 14, 0.88)';
   ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(mx, my, mw, mh, 8);
-  else ctx.rect(mx, my, mw, mh);
+  if (ctx.roundRect) ctx.roundRect(mx, my, mw, panelH, 8);
+  else ctx.rect(mx, my, mw, panelH);
   ctx.fill();
   ctx.strokeStyle = 'rgba(53, 240, 255, 0.45)';
   ctx.lineWidth = 1.5; ctx.stroke();
@@ -12111,7 +13598,7 @@ function drawMinimap(){
   // Corner tech ticks
   ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2;
   var cl = 6;
-  var cs = [[mx, my, 1, 1], [mx+mw, my, -1, 1], [mx, my+mh, 1, -1], [mx+mw, my+mh, -1, -1]];
+  var cs = [[mx, my, 1, 1], [mx+mw, my, -1, 1], [mx, my+panelH, 1, -1], [mx+mw, my+panelH, -1, -1]];
   for (var ci = 0; ci < 4; ci++){
     var q = cs[ci];
     ctx.beginPath();
@@ -12123,7 +13610,9 @@ function drawMinimap(){
 
   // Radar sweep line
   var sweepA = (G.t * 2.5) % TAU;
-  var cx = mx + mw/2, cy = my + mh/2;
+  var pad = 8;
+  var innerW = mw - pad*2, innerH = mh - pad*2;
+  var cx = mx + pad + innerW/2, cy = my + pad + innerH/2;
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(cx + Math.cos(sweepA)*48, cy + Math.sin(sweepA)*48);
@@ -12131,11 +13620,16 @@ function drawMinimap(){
   ctx.lineWidth = 1; ctx.stroke();
 
   // Arena boundary box
-  var pad = 8;
-  var innerW = mw - pad*2, innerH = mh - pad*2;
   var scale = innerW / ARENA;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.strokeRect(mx + pad, my + pad, innerW, innerH);
+
+  // Interior clipped rendering to prevent blips from bleeding outside boundary
+  ctx.save();
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(mx + pad, my + pad, innerW, innerH, 4);
+  else ctx.rect(mx + pad, my + pad, innerW, innerH);
+  if (ctx.clip) ctx.clip();
 
   // Interactive Map POIs on minimap
   if (G.boostRings){
@@ -12157,6 +13651,17 @@ function drawMinimap(){
       ctx.beginPath(); ctx.arc(wx, wy, 2.4, 0, TAU);
       ctx.fill();
     }
+  }
+
+  // Astral Void Rift on minimap
+  var miniRift = (G.astralRift && G.astralRift.active) ? G.astralRift : ((G.astralVoidRift && G.astralVoidRift.active) ? G.astralVoidRift : null);
+  if (miniRift){
+    var mrx = mx + pad + miniRift.x * scale;
+    var mry = my + pad + miniRift.y * scale;
+    var mrPulse = 3.2 + Math.sin(G.t * 8) * 1.2;
+    ctx.fillStyle = '#bf55ec';
+    ctx.beginPath(); ctx.arc(mrx, mry, mrPulse, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#35f0ff'; ctx.lineWidth = 1.2; ctx.stroke();
   }
 
   if (G.salvagePods){
@@ -12217,12 +13722,30 @@ function drawMinimap(){
   ctx.moveTo(px, py);
   ctx.lineTo(px + Math.cos(p.aim)*6, py + Math.sin(p.aim)*6);
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore(); // End interior clip
 
   ctx.textAlign = 'center';
   ctx.font = 'bold 9px ui-monospace,monospace';
   ctx.fillStyle = '#9fb6c8';
   var hostiles = G.enemies.filter(function(e){ return e.hp > 0; }).length;
-  ctx.fillText('RADAR (' + hostiles + ')', mx + mw/2, my + mh + 12);
+  ctx.fillText('RADAR SCAN (' + hostiles + ')', mx + mw/2, my + pad + innerH + 11);
+
+  // Micro legend with colored square swatches neatly enclosed in panel
+  ctx.font = 'bold 8px ui-monospace,monospace';
+  ctx.textAlign = 'left';
+  var legY = my + pad + innerH + 22;
+  // Cyan: Player
+  ctx.fillStyle = '#35f0ff';
+  ctx.fillRect(mx + 8, legY - 5, 5, 5);
+  ctx.fillText('YOU', mx + 15, legY);
+  // Red: Foe
+  ctx.fillStyle = '#ff4d6d';
+  ctx.fillRect(mx + 42, legY - 5, 5, 5);
+  ctx.fillText('FOE', mx + 49, legY);
+  // Gold: Apex
+  ctx.fillStyle = '#ffe066';
+  ctx.fillRect(mx + 76, legY - 5, 5, 5);
+  ctx.fillText('APEX', mx + 83, legY);
 
   ctx.restore();
 }
@@ -12230,7 +13753,10 @@ function drawMinimap(){
 function drawOffscreenIndicators(){
   var p = G.player;
   if (!p) return;
-  var margin = 42;
+  var marginLeft = 36;
+  var marginRight = 158;
+  var marginTop = 78;
+  var marginBottom = 76;
 
   function renderPointer(targetX, targetY, col, label){
     var dx = targetX - p.x, dy = targetY - p.y;
@@ -12239,13 +13765,14 @@ function drawOffscreenIndicators(){
     var sx = W/2 + (targetX - G.camX) * ZOOM;
     var sy = H/2 + (targetY - G.camY) * ZOOM;
 
-    if (sx >= margin && sx <= W - margin && sy >= margin && sy <= H - margin) return;
+    if (sx >= marginLeft && sx <= W - marginRight && sy >= marginTop && sy <= H - marginBottom) return;
 
     var ang = Math.atan2(sy - H/2, sx - W/2);
     var edgeX = W/2, edgeY = H/2;
     var cos = Math.cos(ang), sin = Math.sin(ang);
-    var xDist = (cos > 0 ? (W/2 - margin) : (-W/2 + margin)) / (cos || 0.0001);
-    var yDist = (sin > 0 ? (H/2 - margin) : (-H/2 + margin)) / (sin || 0.0001);
+    var effectiveTop = (cos < -0.3) ? 116 : marginTop;
+    var xDist = (cos > 0 ? (W/2 - marginRight) : (-W/2 + marginLeft)) / (cos || 0.0001);
+    var yDist = (sin > 0 ? (H/2 - marginBottom) : (-H/2 + effectiveTop)) / (sin || 0.0001);
     var dRay = Math.min(Math.abs(xDist), Math.abs(yDist));
     edgeX += cos * dRay;
     edgeY += sin * dRay;
@@ -12269,19 +13796,26 @@ function drawOffscreenIndicators(){
     ctx.save();
     ctx.textAlign = 'center';
     ctx.font = 'bold 10px ui-monospace,monospace';
-    var textY = edgeY + (sin > 0 ? 16 : -12);
-    var textX = clamp(edgeX, 70, W - 70);
+    var textY = clamp(edgeY + (sin > 0 ? -14 : 15), effectiveTop + 10, H - marginBottom - 4);
+    var textX = clamp(edgeX + (cos > 0 ? -10 : 10), marginLeft + 40, W - marginRight - 10);
 
-    ctx.strokeStyle = 'rgba(5, 6, 14, 0.9)'; ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(5, 6, 14, 0.95)'; ctx.lineWidth = 3.5;
     var distText = Math.round(dist) + 'm';
-    ctx.strokeText(label + ' [' + distText + ']', textX, textY);
+    var fullLabel = label + ' [' + distText + ']';
+    ctx.strokeText(fullLabel, textX, textY);
     ctx.fillStyle = col;
-    ctx.fillText(label + ' [' + distText + ']', textX, textY);
+    ctx.fillText(fullLabel, textX, textY);
     ctx.restore();
   }
 
   if (G.boss && G.boss.hp > 0){
-    renderPointer(G.boss.x, G.boss.y, G.boss.color, 'APEX ' + G.boss.name);
+    var bossLabel = G.boss.dormant ? 'TITAN STASIS EGG' : ('APEX ' + G.boss.name);
+    renderPointer(G.boss.x, G.boss.y, G.boss.color, bossLabel);
+  }
+
+  var offRift = (G.astralRift && G.astralRift.active) ? G.astralRift : ((G.astralVoidRift && G.astralVoidRift.active) ? G.astralVoidRift : null);
+  if (offRift){
+    renderPointer(offRift.x, offRift.y, '#bf55ec', 'ASTRAL VOID RIFT');
   }
 
   if (G.skillCores){
@@ -12487,6 +14021,10 @@ function drawTrainingDock(){
       { label: '+ SPLITTER', col: '#00f5d4', act: function(){ spawnTrainingEnemy('splitter'); } },
       { label: '+ SHARD', col: '#e0aaff', act: function(){ spawnTrainingEnemy('shard'); } },
       { label: '+ MINION', col: '#35f0ff', act: function(){ spawnTrainingEnemy('minion_geom'); } },
+      { label: '+ CARAPACE', col: '#35f0ff', act: function(){ spawnTrainingEnemy('carapace'); } },
+      { label: '+ MANTIS', col: '#bf55ec', act: function(){ spawnTrainingEnemy('mantis'); } },
+      { label: '+ SPOREPOD', col: '#ff9f1c', act: function(){ spawnTrainingEnemy('sporepod'); } },
+      { label: '+ COLOSSUS', col: '#ff3565', act: function(){ spawnTrainingEnemy('colossus'); } },
       { label: '+ SQUAD x5', col: '#ff9f1c', act: function(){
           var types = ['drifter', 'brute', 'shooter', 'splitter', 'shard'];
           for (var si = 0; si < 5; si++) spawnTrainingEnemy(types[si % types.length]);
@@ -12495,6 +14033,7 @@ function drawTrainingDock(){
     ];
   } else if (cat === 'bosses'){
     actions = [
+      { label: 'VORACIS', col: '#ff0033', act: function(){ spawnTrainingBoss('voracis', true); } },
       { label: 'ABYSS TITAN', col: '#e0aaff', act: function(){ spawnTrainingBoss('abyss', true); } },
       { label: 'AEGIS PRIME', col: '#ff9f1c', act: function(){ spawnTrainingBoss('aegis', true); } },
       { label: 'VOID REAPER', col: '#bf55ec', act: function(){ spawnTrainingBoss('void', true); } },
@@ -12601,9 +14140,9 @@ function drawHUD(){
 
   /* Active Skill Pod [Q] Positioned Above Radar (Middle Right Edge) */
   var mw = 114, mh = 114;
-  var mx = W - mw - 20, my = Math.round((H - mh - 16) / 2);
   var skW = mw;
   var skH = 46;
+  var mx = W - mw - 20, my = Math.round((H - mh - 16) / 2);
   var sx = mx;
   var sy = my - skH - 12;
 
@@ -12623,7 +14162,7 @@ function drawHUD(){
   ctx.fill();
 
   // Keycap Badge [Q] (Left side)
-  var kw = 20, kh = 20;
+  var kw = 18, kh = 18;
   var kx = sx + 6, ky = sy + (skH - kh)/2;
   ctx.fillStyle = (sk && sData.cd <= 0) ? sk.col : 'rgba(255, 255, 255, 0.12)';
   ctx.beginPath();
@@ -12635,7 +14174,7 @@ function drawHUD(){
   ctx.textAlign = 'center';
   ctx.font = 'bold 11px ui-monospace,monospace';
   ctx.fillStyle = (sk && sData.cd <= 0) ? '#05060a' : '#ffffff';
-  ctx.fillText('Q', kx + kw/2, ky + 14);
+  ctx.fillText('Q', kx + kw/2, ky + 13);
 
   if (sk){
     var ready = (sData.cd <= 0);
@@ -12647,31 +14186,54 @@ function drawHUD(){
     ctx.stroke();
 
     // Circular Icon Bay
-    var bayX = sx + 39, bayY = sy + skH/2;
+    var bayX = sx + 34, bayY = sy + skH/2;
     ctx.fillStyle = ready ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.3)';
-    ctx.beginPath(); ctx.arc(bayX, bayY, 11, 0, TAU); ctx.fill();
-    drawIcon(sk.icon, bayX, bayY, 14, ready ? sk.col : '#829bb0');
+    ctx.beginPath(); ctx.arc(bayX, bayY, 10, 0, TAU); ctx.fill();
+    drawIcon(sk.icon, bayX, bayY, 13, ready ? sk.col : '#829bb0');
+
+    // Radial cooldown sweep overlay on icon bay
+    if (!ready && sData.maxCd > 0){
+      var cdAngleFrac = clamp(sData.cd / (sData.maxCd || 10), 0, 1);
+      ctx.beginPath();
+      ctx.moveTo(bayX, bayY);
+      ctx.arc(bayX, bayY, 10, -Math.PI / 2, -Math.PI / 2 + TAU * cdAngleFrac, false);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fill();
+    }
 
     // Skill Name & Status
     ctx.textAlign = 'left';
-    ctx.font = 'bold 10px ui-monospace,monospace';
-    ctx.fillStyle = ready ? '#ffffff' : '#9fb6c8';
     var skDisplayName = (sk.name.split(' ')[0] || sk.name).toUpperCase();
-    ctx.fillText(skDisplayName, sx + 54, sy + 18);
+    var nameFont = (skDisplayName.length > 7 ? 'bold 8.5px ' : 'bold 9.5px ') + 'ui-monospace,monospace';
+    ctx.font = nameFont;
+    ctx.fillStyle = ready ? '#ffffff' : '#9fb6c8';
+    ctx.fillText(skDisplayName, sx + 48, sy + 18);
 
-    ctx.font = 'bold 9px ui-monospace,monospace';
+    ctx.font = 'bold 8.5px ui-monospace,monospace';
+    var barTrackW = skW - 54;
     if (sData.activeT > 0){
       ctx.fillStyle = '#ffe066';
-      ctx.fillText('ACTIVE ' + sData.activeT.toFixed(1) + 's', sx + 54, sy + 32);
+      ctx.fillText('ACTIVE ' + sData.activeT.toFixed(1) + 's', sx + 48, sy + 30);
+      // Glowing Active Duration progress bar
+      ctx.fillStyle = 'rgba(255, 224, 102, 0.18)';
+      ctx.fillRect(sx + 48, sy + 35, barTrackW, 3);
+      var actDur = sk.duration || 5.0;
+      var actFrac = clamp(sData.activeT / actDur, 0, 1);
+      ctx.fillStyle = '#ffe066';
+      ctx.fillRect(sx + 48, sy + 35, barTrackW * actFrac, 3);
     } else if (ready){
       ctx.fillStyle = sk.col;
-      ctx.fillText('READY', sx + 54, sy + 32);
+      ctx.fillText('READY', sx + 48, sy + 32);
     } else {
       ctx.fillStyle = '#8fa8be';
-      ctx.fillText('CD ' + sData.cd.toFixed(1) + 's', sx + 54, sy + 32);
-      var cdFrac = 1 - (sData.cd / (sData.maxCd || 10));
+      ctx.fillText('CD ' + sData.cd.toFixed(1) + 's', sx + 48, sy + 30);
+      // Cooldown progress bar with background track
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.fillRect(sx + 48, sy + 35, barTrackW, 3);
+      var cdFrac = clamp(1 - (sData.cd / (sData.maxCd || 10)), 0, 1);
       ctx.fillStyle = sk.col;
-      ctx.fillRect(sx + 54, sy + 36, (skW - 60) * cdFrac, 2);
+      ctx.fillRect(sx + 48, sy + 35, barTrackW * cdFrac, 3);
     }
   } else {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -12681,14 +14243,14 @@ function drawHUD(){
     else ctx.rect(sx, sy, skW, skH);
     ctx.stroke();
 
-    drawIcon('lock', sx + 38, sy + skH/2, 12, '#5a7080');
+    drawIcon('lock', sx + 34, sy + skH/2, 11, '#5a7080');
 
     ctx.textAlign = 'left';
-    ctx.font = 'bold 10px ui-monospace,monospace';
+    ctx.font = 'bold 9.5px ui-monospace,monospace';
     ctx.fillStyle = '#64748b';
-    ctx.fillText('VACANT', sx + 54, sy + 22);
+    ctx.fillText('VACANT', sx + 48, sy + 21);
     ctx.font = '8px ui-monospace,monospace';
-    ctx.fillText('SKILL SLOT', sx + 54, sy + 33);
+    ctx.fillText('SKILL SLOT', sx + 48, sy + 32);
   }
   ctx.restore();
 
@@ -12763,6 +14325,13 @@ function drawHUD(){
     ctx.restore();
   }
 
+  /* Cockpit & Controls Anchor Metrics */
+  var bw = Math.min(270, Math.max(210, Math.floor(W * 0.28)));
+  var bh = (p.maxShield > 0) ? 74 : 62;
+  var bx0 = 16, by0 = 16;
+  var leftCockpitEnd = bx0 + bw;
+  var rightControlsStart = W - 16 - (G.godModeUnlocked ? 192 : 92);
+
   if (G.mode === 'training'){
     drawTrainingDock();
     if (G.boss){
@@ -12798,9 +14367,14 @@ function drawHUD(){
     }
   } else {
   /* Top-Center Tactical Incubator & Apex Boss Combat Console */
-  var pillW = (G.boss && !G.boss.dormant) ? 420 : 350;
+  var isSec2Wave = (G.sector === 2 && G.wave >= 6 && G.wave <= 9);
+  var pillW = Math.min(W - 32, ((G.boss && !G.boss.dormant) || isSec2Wave) ? 390 : 340);
   var pillH = 46;
-  var pillX = (W - pillW) / 2, pillY = 16;
+  var pillX = Math.round((W - pillW) / 2);
+  var pillY = 16;
+  if (pillX < leftCockpitEnd + 10 || pillX + pillW > rightControlsStart - 10){
+    pillY = by0 + bh + 10;
+  }
 
   ctx.save();
   ctx.fillStyle = 'rgba(7, 11, 22, 0.92)';
@@ -12809,7 +14383,7 @@ function drawHUD(){
   else ctx.rect(pillX, pillY, pillW, pillH);
   ctx.fill();
 
-  var borderCol = (G.boss && G.boss.dormant) ? 'rgba(53, 240, 255, 0.65)' : (G.boss && (G.boss.phase === 2 || G.boss.phase2) ? '#ff0055' : 'rgba(224, 170, 255, 0.75)');
+  var borderCol = (G.boss && G.boss.dormant) ? 'rgba(53, 240, 255, 0.65)' : (isSec2Wave ? 'rgba(191, 85, 236, 0.75)' : (G.boss && (G.boss.phase === 2 || G.boss.phase2) ? '#ff0055' : 'rgba(224, 170, 255, 0.75)'));
   ctx.strokeStyle = borderCol;
   ctx.lineWidth = 1.5;
   ctx.stroke();
@@ -12823,7 +14397,61 @@ function drawHUD(){
   ctx.moveTo(pillX + pillW - cLen, pillY); ctx.lineTo(pillX + pillW, pillY); ctx.lineTo(pillX + pillW, pillY + cLen);
   ctx.stroke();
 
-  if (G.boss && G.boss.dormant){
+  if (isSec2Wave){
+    // --- SECTOR 02 BIO-PREDATOR COMBAT TELEMETRY (WAVES 6-9) ---
+    var curW2 = G.wave;
+    var waveK2 = (G && G.waveKills) || 0;
+    var waveT2 = (G && G.waveTotal) || 24;
+    var waveFrac2 = waveT2 > 0 ? clamp(waveK2 / waveT2, 0, 1) : 0;
+    drawIcon('skull', pillX + 22, pillY + 23, 16, '#bf55ec');
+
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 11px ui-monospace,monospace';
+    ctx.fillStyle = '#bf55ec';
+    ctx.fillText(G.waveTitle || ('SECTOR 02 // WAVE ' + curW2), pillX + 38, pillY + 16);
+
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 10px ui-monospace,monospace';
+    ctx.fillStyle = '#ffe066';
+    ctx.fillText('HOSTILES: ' + waveK2 + '/' + waveT2, pillX + pillW - 14, pillY + 16);
+
+    // 4-Segment Cellular Bio-Threat Gauge (Waves 6 through 9)
+    var gaugeX2 = pillX + 38;
+    var gaugeY2 = pillY + 23;
+    var gaugeW2 = pillW - 52;
+    var gaugeH2 = 7;
+    var segCount2 = 4;
+    var segGap2 = 4;
+    var segW2 = (gaugeW2 - segGap2 * (segCount2 - 1)) / segCount2;
+
+    for (var sgi2 = 0; sgi2 < segCount2; sgi2++){
+      var sx2 = gaugeX2 + sgi2 * (segW2 + segGap2);
+      var segWave2 = sgi2 + 6;
+      var isFilled2 = (curW2 > segWave2);
+      var isCurrent2 = (curW2 === segWave2);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.fillRect(sx2, gaugeY2, segW2, gaugeH2);
+
+      if (isFilled2){
+        ctx.fillStyle = '#bf55ec';
+        ctx.fillRect(sx2, gaugeY2, segW2, gaugeH2);
+      } else if (isCurrent2){
+        ctx.fillStyle = 'rgba(191, 85, 236, 0.35)';
+        ctx.fillRect(sx2, gaugeY2, segW2, gaugeH2);
+        ctx.fillStyle = '#ffe066';
+        ctx.fillRect(sx2, gaugeY2, segW2 * waveFrac2, gaugeH2);
+      }
+      ctx.strokeStyle = isCurrent2 ? '#ffe066' : 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(sx2, gaugeY2, segW2, gaugeH2);
+    }
+
+    ctx.textAlign = 'center';
+    ctx.font = '9px ui-monospace,monospace';
+    ctx.fillStyle = '#9fb6c8';
+    ctx.fillText((G.waveSub || 'ELIMINATE BIO-PREDATORS • SECURE CONDUIT TO VORACIS').toUpperCase(), gaugeX2 + gaugeW2 / 2, pillY + 41);
+  } else if (G.boss && G.boss.dormant){
     // --- INCUBATION TELEMETRY (WAVES 1-5) ---
     var curW = Math.min(5, (G && G.wave) || 1);
     var waveK = (G && G.waveKills) || 0;
@@ -12880,14 +14508,17 @@ function drawHUD(){
     ctx.textAlign = 'center';
     ctx.font = '9px ui-monospace,monospace';
     ctx.fillStyle = '#9fb6c8';
-    ctx.fillText('EGG STASIS: ' + shellPct + '% • DEFEAT 5 WAVES TO BREACH TITAN SHELL', pillX + pillW / 2 + 10, pillY + 41);
+    ctx.fillText('EGG STASIS: ' + shellPct + '% • DEFEAT 5 WAVES TO BREACH TITAN SHELL', gaugeX + gaugeW / 2, pillY + 41);
   } else if (G.boss){
     // --- HATCHED APEX BOSS COMBAT CONSOLE ---
     var b = G.boss;
     var bProgress = clamp(b.hp / b.maxhp, 0, 1);
     var isPhase2 = (b.phase === 2 || b.phase2);
-    var bossTitle = isPhase2 ? 'APEX ECLIPSE [PHASE 2]' : 'ABYSS TITAN [PHASE 1]';
-    var bossCol = isPhase2 ? '#ff0055' : b.color;
+    var isVoracis = (b.bossType === 'voracis');
+    var bossTitle = isVoracis ?
+      (isPhase2 ? 'VORACIS [PHASE 2: FRENZIED]' : (pillW < 390 ? 'VORACIS [PHASE 1]' : 'VORACIS THE VOID GARGANTUA [PHASE 1]')) :
+      (isPhase2 ? 'APEX ECLIPSE [PHASE 2]' : 'ABYSS LEVIATHAN [PHASE 1]');
+    var bossCol = isPhase2 ? '#ff0033' : b.color;
 
     drawIcon('skull', pillX + 22, pillY + 23, 16, bossCol);
 
@@ -12939,10 +14570,23 @@ function drawHUD(){
     if (b.skillPhase === 'windup' || b.skillPhase === 'active'){
       var blink = (Math.sin(G.t * 12) > 0);
       ctx.fillStyle = blink ? '#ff4d6d' : '#ffe066';
-      ctx.fillText('CRITICAL: [' + b.skillName + '] ACTIVE', pillX + pillW / 2 + 10, pillY + 41);
+      var alertTxt = 'CRITICAL: [' + b.skillName + '] ACTIVE';
+      var atm = ctx.measureText ? ctx.measureText(alertTxt) : null;
+      if (atm && typeof atm.width === 'number' && atm.width > barW){
+        ctx.font = '8px ui-monospace,monospace';
+      }
+      ctx.fillText(alertTxt, barX + barW / 2, pillY + 41);
     } else {
       ctx.fillStyle = '#9fb6c8';
-      ctx.fillText(Math.ceil(b.hp) + ' / ' + b.maxhp + ' HP • HARVEST TO COMPLETE PURGE', pillX + pillW / 2 + 10, pillY + 41);
+      var subPrompt = isVoracis ?
+        (isPhase2 ? ' • RUPTURED CORE EXPOSED' : ' • HARVEST TO PURGE SECTOR 02') :
+        ' • HARVEST TO COMPLETE PURGE';
+      var hpSubTxt = Math.ceil(b.hp) + ' / ' + b.maxhp + ' HP' + subPrompt;
+      var htm = ctx.measureText ? ctx.measureText(hpSubTxt) : null;
+      if (htm && typeof htm.width === 'number' && htm.width > barW){
+        hpSubTxt = Math.ceil(b.hp) + '/' + b.maxhp + ' HP' + (isPhase2 ? ' • P2 ACTIVE' : ' • PURGE');
+      }
+      ctx.fillText(hpSubTxt, barX + barW / 2, pillY + 41);
     }
   } else {
     // Sector Purged
@@ -12950,9 +14594,63 @@ function drawHUD(){
     ctx.font = 'bold 12px ui-monospace,monospace';
     ctx.fillStyle = '#3ddc97';
     ctx.textAlign = 'center';
-    ctx.fillText('SECTOR PURGED // APEX ELIMINATED', pillX + pillW / 2 + 10, pillY + 27);
+    var purgedTitle = (G.sector === 2) ? 'SECTOR 02 PURGED // APEX GARGANTUA SLAIN' : 'SECTOR PURGED // APEX ELIMINATED';
+    ctx.fillText(purgedTitle, pillX + pillW / 2, pillY + 27);
   }
   ctx.restore();
+  }
+
+  /* Boss Critical Phase Notice / Apex Skill Alert Banner */
+  var bsaY = pillY + pillH + 10;
+  var bsaH = 40;
+  if (G.bossSkillAlert && G.bossSkillAlert.time > 0){
+    ctx.save();
+    var bsa = G.bossSkillAlert;
+    var bsaAlpha = Math.min(1, bsa.time > 0.4 ? 1 : bsa.time / 0.4);
+    ctx.globalAlpha = bsaAlpha;
+    var bsaW = Math.min(540, W - 32);
+    var bsaX = (W - bsaW) / 2;
+
+    ctx.fillStyle = 'rgba(12, 4, 16, 0.94)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bsaX, bsaY, bsaW, bsaH, 6);
+    else ctx.rect(bsaX, bsaY, bsaW, bsaH);
+    ctx.fill();
+
+    var bsaCol = bsa.color || '#ff0055';
+    ctx.strokeStyle = bsaCol;
+    ctx.lineWidth = 1.8;
+    ctx.shadowColor = bsaCol;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Tech corner ticks
+    ctx.strokeStyle = '#ffe066';
+    ctx.lineWidth = 2;
+    var bcl = 5;
+    ctx.beginPath();
+    ctx.moveTo(bsaX, bsaY + bcl); ctx.lineTo(bsaX, bsaY); ctx.lineTo(bsaX + bcl, bsaY);
+    ctx.moveTo(bsaX + bsaW - bcl, bsaY); ctx.lineTo(bsaX + bsaW, bsaY); ctx.lineTo(bsaX + bsaW, bsaY + bcl);
+    ctx.stroke();
+
+    drawIcon('hazard', bsaX + 22, bsaY + bsaH / 2, 14, bsaCol);
+    drawIcon('hazard', bsaX + bsaW - 22, bsaY + bsaH / 2, 14, bsaCol);
+
+    ctx.textAlign = 'center';
+    var alertTitle = 'CRITICAL PHASE ALERT: ' + bsa.name.toUpperCase();
+    var bsaFont = (bsaW < 440 ? 'bold 10px ' : 'bold 12px ') + 'ui-monospace,monospace';
+    ctx.font = bsaFont;
+    var atm2 = ctx.measureText ? ctx.measureText(alertTitle) : null;
+    if (atm2 && typeof atm2.width === 'number' && atm2.width > bsaW - 60){
+      ctx.font = 'bold 9px ui-monospace,monospace';
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(alertTitle, W / 2, bsaY + 17);
+    ctx.font = (bsaW < 440 ? 'bold 9px ' : 'bold 10px ') + 'ui-monospace,monospace';
+    ctx.fillStyle = bsaCol;
+    ctx.fillText('HOSTILE APEX ANOMALY RECONFIGURED // EVASIVE ACTION ADVISED', W / 2, bsaY + 31);
+    ctx.restore();
   }
 
   /* Tactical Directive Notification Toast (Game Start or Milestone) */
@@ -12960,8 +14658,10 @@ function drawHUD(){
     ctx.save();
     var toastAlpha = Math.min(1, G.missionToast.t > 0.8 ? 1 : G.missionToast.t / 0.8);
     ctx.globalAlpha = toastAlpha;
-    var tw = Math.min(520, W * 0.90), th = 48;
-    var tx = (W - tw) / 2, ty = H * 0.22;
+    var tw = Math.min(540, W * 0.90), th = 48;
+    var tx = (W - tw) / 2;
+    var bsaActive = (G.bossSkillAlert && G.bossSkillAlert.time > 0);
+    var ty = bsaActive ? (bsaY + bsaH + 10) : (pillY + pillH + 10);
     ctx.fillStyle = 'rgba(6, 12, 24, 0.92)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(tx, ty, tw, th, 8);
@@ -12981,19 +14681,38 @@ function drawHUD(){
 
     drawIcon('chevron', tx + 24, ty + 24, 14, '#35f0ff');
     ctx.textAlign = 'left';
-    ctx.font = 'bold 12px ui-monospace,monospace';
+    var maxTitleW = tw - 54;
+    var toastTitle = G.missionToast.title;
+    ctx.font = (tw < 440 ? 'bold 11px ' : 'bold 12px ') + 'ui-monospace,monospace';
+    var ttm = ctx.measureText ? ctx.measureText(toastTitle) : null;
+    if (ttm && typeof ttm.width === 'number' && ttm.width > maxTitleW){
+      ctx.font = 'bold 10px ui-monospace,monospace';
+      ttm = ctx.measureText ? ctx.measureText(toastTitle) : null;
+      if (ttm && typeof ttm.width === 'number' && ttm.width > maxTitleW){
+        while (toastTitle.length > 10 && ctx.measureText(toastTitle + '..').width > maxTitleW){
+          toastTitle = toastTitle.slice(0, -1);
+        }
+        toastTitle += '..';
+      }
+    }
     ctx.fillStyle = '#35f0ff';
-    ctx.fillText(G.missionToast.title, tx + 42, ty + 20);
-    ctx.font = '10px ui-monospace,monospace';
+    ctx.fillText(toastTitle, tx + 42, ty + 20);
+
+    var toastSub = G.missionToast.sub;
+    ctx.font = (tw < 440 ? '9px ' : '10px ') + 'ui-monospace,monospace';
+    var stm = ctx.measureText ? ctx.measureText(toastSub) : null;
+    if (stm && typeof stm.width === 'number' && stm.width > maxTitleW){
+      while (toastSub.length > 10 && ctx.measureText(toastSub + '..').width > maxTitleW){
+        toastSub = toastSub.slice(0, -1);
+      }
+      toastSub += '..';
+    }
     ctx.fillStyle = '#ffe066';
-    ctx.fillText(G.missionToast.sub, tx + 42, ty + 36);
+    ctx.fillText(toastSub, tx + 42, ty + 36);
     ctx.restore();
   }
 
   /* Cyber-Cockpit Status Console (Top Left) */
-  var bw = Math.min(310, W * 0.44);
-  var bh = (p.maxShield > 0) ? 96 : 82;
-  var bx0 = 16, by0 = 16;
   var lowHull = (p.hp / p.maxhp < 0.35);
   var hpc = lowHull ? '#ff4d6d' : (p.hp / p.maxhp < 0.6 ? '#ffe066' : '#35f0ff');
 
@@ -13098,20 +14817,35 @@ function drawHUD(){
 
   curSubY += xpBarH + 5;
 
-  // 4. Telemetry status badges (Level, Aim Assist, God Mode)
+  // 4. Telemetry status badges (Level, Wave, Aim Assist, God Mode)
+  var curBadgeX = bx0 + 12;
   ctx.textAlign = 'left';
   ctx.font = 'bold 10px ui-monospace,monospace';
   ctx.fillStyle = '#b388ff';
-  ctx.fillText('LV ' + p.lvl, bx0 + 12, curSubY + 10);
+  ctx.fillText('LV ' + p.lvl, curBadgeX, curSubY + 10);
+  curBadgeX += (p.lvl >= 10 ? 44 : 38);
 
-  drawIcon('reticle', bx0 + 64, curSubY + 6, 10, '#35f0ff');
-  ctx.fillStyle = '#35f0ff';
-  ctx.fillText('AIM ASSIST', bx0 + 74, curSubY + 10);
+  var waveBadgeText = (G.mode === 'training') ? 'TRAIN' : (G.sector === 2 ? ('S2:W' + G.wave) : (G.boss && !G.boss.dormant ? 'BOSS' : ('WAVE ' + G.wave + '/5')));
+  drawIcon('crosshair', curBadgeX + 5, curSubY + 6, 9, '#ffe066');
+  ctx.fillStyle = '#ffe066';
+  ctx.fillText(waveBadgeText, curBadgeX + 13, curSubY + 10);
+  var wbm = ctx.measureText ? ctx.measureText(waveBadgeText) : null;
+  curBadgeX += (wbm && typeof wbm.width === 'number') ? (wbm.width + 20) : 58;
 
-  if (p.godMode){
-    drawIcon('shield', bx0 + 162, curSubY + 6, 10, '#ffe066');
+  if (p.aimAssist && curBadgeX + 50 <= bx0 + bw){
+    var aimCol = (p.aimAssistBonus && p.aimAssistBonus > 0) ? '#ffe066' : '#35f0ff';
+    var aimLabel = (p.aimAssistBonus && p.aimAssistBonus > 0) ? 'FOCUS' : 'AIM';
+    drawIcon('reticle', curBadgeX + 5, curSubY + 6, 9, aimCol);
+    ctx.fillStyle = aimCol;
+    ctx.fillText(aimLabel, curBadgeX + 13, curSubY + 10);
+    var aimTm = ctx.measureText ? ctx.measureText(aimLabel) : null;
+    curBadgeX += (aimTm && typeof aimTm.width === 'number') ? (aimTm.width + 18) : 42;
+  }
+
+  if (p.godMode && curBadgeX + 38 <= bx0 + bw){
+    drawIcon('shield', curBadgeX + 5, curSubY + 6, 9, '#ffe066');
     ctx.fillStyle = '#ffe066';
-    ctx.fillText('GODMODE', bx0 + 172, curSubY + 10);
+    ctx.fillText('GOD', curBadgeX + 13, curSubY + 10);
   }
   ctx.restore();
 
@@ -13213,16 +14947,28 @@ function drawHUD(){
   if (G.streak > 2){
     var streakCol = G.streak >= 20 ? '#35f0ff' : (G.streak >= 15 ? '#b388ff' : (G.streak >= 10 ? '#ff4d6d' : (G.streak >= 5 ? '#ff9f1c' : '#ffe066')));
     var streakTitle = G.streak >= 20 ? 'APEX GODLIKE' : (G.streak >= 15 ? 'RAMPAGE' : (G.streak >= 10 ? 'ULTRA KILL' : (G.streak >= 5 ? 'MEGA KILL' : 'COMBO')));
-    drawIcon('flame', 30, 114, 18, streakCol);
+    var streakBoxY = by0 + bh + 12;
+    var streakBoxW = 124, streakBoxH = 34;
+    ctx.save();
+    ctx.fillStyle = 'rgba(6, 11, 24, 0.88)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(16, streakBoxY, streakBoxW, streakBoxH, 6);
+    else ctx.rect(16, streakBoxY, streakBoxW, streakBoxH);
+    ctx.fill();
+    ctx.strokeStyle = streakCol;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    drawIcon('flame', 30, streakBoxY + streakBoxH / 2, 14, streakCol);
     ctx.textAlign = 'left';
-    ctx.font = 'bold 24px ui-monospace,monospace';
+    ctx.font = 'bold 18px ui-monospace,monospace';
     ctx.fillStyle = streakCol;
     ctx.globalAlpha = Math.min(1, G.streakT);
-    ctx.fillText('x' + G.streak, 44, 118);
-    ctx.font = 'bold 10px ui-monospace,monospace';
+    ctx.fillText('x' + G.streak, 44, streakBoxY + 18);
+    ctx.font = 'bold 9px ui-monospace,monospace';
     ctx.fillStyle = '#9fb6c8';
-    ctx.fillText(streakTitle, 44, 130);
-    ctx.globalAlpha = 1;
+    ctx.fillText(streakTitle, 44, streakBoxY + 29);
+    ctx.restore();
   }
 
   drawMinimap();
@@ -13303,22 +15049,24 @@ function drawPause(){
 
   var statY = cy0 + 124;
   var col1 = cx0 + 44, col2 = cx0 + cw / 2 + 10;
-
-  ctx.textAlign = 'left';
-  ctx.font = '12px ui-monospace,monospace';
+  var colW = Math.floor(cw / 2 - 50);
 
   function drawStat(iconName, x, y, label, val, valCol){
     drawIcon(iconName, x + 6, y - 4, 11, valCol || '#35f0ff');
     ctx.fillStyle = '#829bb0';
     ctx.font = '11px ui-monospace,monospace';
+    ctx.textAlign = 'left';
     ctx.fillText(label, x + 20, y);
     ctx.fillStyle = valCol || '#ffffff';
     ctx.font = 'bold 12px ui-monospace,monospace';
-    ctx.fillText(val, x + 118, y);
-    ctx.font = '12px ui-monospace,monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(val, x + colW, y);
   }
 
-  drawStat('egg',     col1, statY,      'TITAN STATUS', (G.boss && !G.boss.dormant ? 'HATCHED' : ('STASIS: WAVE ' + Math.min(5, G.wave || 1) + '/5')), '#ffe066');
+  var bossStatText = (G.sector === 2) ?
+    (G.boss ? (G.boss.hp <= 0 ? 'SLAIN' : (G.boss.phase2 ? 'PHASE 2' : 'APEX ACTIVE')) : ('WAVE ' + G.wave + '/10')) :
+    (G.boss && !G.boss.dormant ? 'HATCHED' : ('STASIS: WAVE ' + Math.min(5, G.wave || 1) + '/5'));
+  drawStat(G.sector === 2 ? 'skull' : 'egg', col1, statY, G.sector === 2 ? 'SECTOR 2 STATUS' : 'TITAN STATUS', bossStatText, '#ffe066');
   drawStat('clock',   col2, statY,      'TIME ACTIVE', timeStr, '#35f0ff');
   drawStat('crosshair', col1, statY + 26, 'HOSTILES PURGED', '' + G.kills, '#35f0ff');
   drawStat('flame',   col2, statY + 26, 'COMBAT STREAK', 'x' + G.streak + ' (MAX x' + G.best + ')', '#ffe066');
@@ -13485,11 +15233,12 @@ function drawPause(){
     G._lastPauseHoverId = null;
   }
 
-  // Controls Quick Hint Bar
-  ctx.font = '11px ui-monospace,monospace';
-  ctx.fillStyle = '#678195';
-  var hintY = cy0 + (G.godModeUnlocked ? 392 : 362);
-  ctx.fillText('CONTROLS: [WASD] Move  •  [ARROWS] Directional Fire  •  [SPACE] Dash  •  [Q] Skill  •  [P] Pause  •  [H] Home', W / 2, hintY);
+  // Controls Quick Hint Bar (Cleanly wrapped inside pause card)
+  ctx.font = '10px ui-monospace,monospace';
+  ctx.fillStyle = '#7a94a8';
+  var hintY = cy0 + (G.godModeUnlocked ? 388 : 358);
+  ctx.fillText('CONTROLS: [WASD] Move  •  [ARROWS] Directional Fire  •  [SPACE] Dash', W / 2, hintY);
+  ctx.fillText('[Q] Active Skill  •  [P] Pause  •  [H] Home  •  [M] Audio', W / 2, hintY + 14);
 
   ctx.restore();
 }
@@ -13510,25 +15259,34 @@ function drawBuffTray(){
 
   ctx.save();
 
-  // Floating compact prompt above cards (Centered on screen)
-  var promptY = cardY - 9;
-  var pulse = 0.85 + Math.sin(G.t * 8) * 0.15;
-  ctx.save();
-  ctx.fillStyle = '#ffe066';
-  ctx.font = 'bold 11px ui-monospace,monospace';
-  ctx.textAlign = 'center';
-  ctx.globalAlpha = Math.min(1, Math.max(0, (H - cardY + 50) / 100)) * pulse;
-  var promptText;
-  if (G.pendingSkill){
-    promptText = 'CORE CAPACITY REACHED // ' + G.pendingSkill.name.toUpperCase() + ' (CD ' + G.pendingSkill.cd + 's) // CHOOSE REPLACEMENT';
-  } else {
-    var queueText = (G.queue > 1 ? ('  [+' + (G.queue - 1) + ' READY]') : '');
-    promptText = 'UPGRADES // SELECT [1] [2] [3] OR CLICK' + queueText;
-  }
-  ctx.fillText(promptText, W / 2, promptY);
-  ctx.restore();
-
   var hoveredCard = null;
+  for (var hi = 0; hi < cards.length; hi++){
+    var hx = startX + hi * (cw + gap);
+    if (mouse && mouse.active && mouse.x >= hx && mouse.x <= hx + cw && mouse.y >= cardY && mouse.y <= cardY + ch){
+      hoveredCard = cards[hi];
+      break;
+    }
+  }
+
+  // Floating compact prompt above cards (Rendered only when not hovering a card to prevent visual overlap)
+  if (!hoveredCard){
+    var promptY = cardY - 9;
+    var pulse = 0.85 + Math.sin(G.t * 8) * 0.15;
+    ctx.save();
+    ctx.fillStyle = '#ffe066';
+    ctx.font = 'bold 11px ui-monospace,monospace';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = Math.min(1, Math.max(0, (H - cardY + 50) / 100)) * pulse;
+    var promptText;
+    if (G.pendingSkill){
+      promptText = 'CORE CAPACITY REACHED // ' + G.pendingSkill.name.toUpperCase() + ' (CD ' + G.pendingSkill.cd + 's) // CHOOSE REPLACEMENT';
+    } else {
+      var queueText = (G.queue > 1 ? ('  [+' + (G.queue - 1) + ' READY]') : '');
+      promptText = 'UPGRADES // SELECT [1] [2] [3] OR CLICK' + queueText;
+    }
+    ctx.fillText(promptText, W / 2, promptY);
+    ctx.restore();
+  }
 
   // Draw small, sleek compact cards with clear single-word names
   for (var i = 0; i < cards.length; i++){
@@ -13536,9 +15294,8 @@ function drawBuffTray(){
     var cx = startX + i * (cw + gap);
     c.rect = { x: cx, y: cardY, w: cw, h: ch };
 
-    var isHover = (mouse && mouse.active && mouse.x >= cx && mouse.x <= cx + cw && mouse.y >= cardY && mouse.y <= cardY + ch);
+    var isHover = (hoveredCard === c);
     if (isHover){
-      hoveredCard = c;
       if (G._lastHoverBuffCard !== i){
         G._lastHoverBuffCard = i;
         if (sound && sound.hover) sound.hover();
@@ -13591,15 +15348,20 @@ function drawBuffTray(){
     var iconX = cx + 44, iconY = drawY + ch / 2;
     drawIcon(c.u.icon, iconX, iconY, 16, isHover ? '#ffe066' : themeCol);
 
-    // 5. Clear One-Word Name (strictly single word, zero description on card)
+    // 5. Clear One-Word Name (responsive font measurement to avoid pill collision)
+    var displayName = (c.u.isSkill ? c.u.name : (c.u.name.split(' ')[0] || c.u.name)).toUpperCase();
+    var catW = 42, catH = 18;
+    var maxNameW = cw - catW - 68;
     ctx.textAlign = 'left';
     ctx.font = 'bold 11px ui-monospace,monospace';
+    var dnm = ctx.measureText ? ctx.measureText(displayName) : null;
+    if (dnm && typeof dnm.width === 'number' && dnm.width > maxNameW){
+      ctx.font = 'bold 10px ui-monospace,monospace';
+    }
     ctx.fillStyle = isHover ? '#ffe066' : '#ffffff';
-    var displayName = (c.u.isSkill ? c.u.name : (c.u.name.split(' ')[0] || c.u.name)).toUpperCase();
     ctx.fillText(displayName, cx + 58, drawY + 27);
 
     // 6. Category pill badge (Right side: BUFF or SKILL)
-    var catW = 42, catH = 18;
     var catX = cx + cw - catW - 8, catY = drawY + (ch - catH) / 2;
     ctx.fillStyle = isSkill ? 'rgba(179, 136, 255, 0.22)' : 'rgba(53, 240, 255, 0.18)';
     ctx.beginPath();
@@ -13624,7 +15386,8 @@ function drawBuffTray(){
     var hr = hoveredCard.rect;
     ctx.save();
     ctx.font = 'bold 11px ui-monospace,monospace';
-    var textW = ctx.measureText ? ctx.measureText(hoveredCard.u.desc).width : 200;
+    var htm = ctx.measureText ? ctx.measureText(hoveredCard.u.desc) : null;
+    var textW = (htm && typeof htm.width === 'number') ? htm.width : 200;
     var tipW = Math.max(hr.w, textW + 28);
     var tipH = 26;
     var tipX = clamp(hr.x + hr.w/2 - tipW/2, 10, W - tipW - 10);
@@ -13775,14 +15538,19 @@ function drawVictory(){
   ctx.stroke();
 
   // Trophy icons and victory title
-  drawIcon('trophy', W/2 - 210, 24, 15, '#ffe066');
-  drawIcon('trophy', W/2 + 210, 24, 15, '#ffe066');
-  ctx.textAlign = 'center';
+  var vicTopTitle = (G.sector === 2) ? 'SECTOR 02 PURGED // APEX GARGANTUA SLAIN' : 'SECTOR PURGED // APEX TITAN SLAIN';
   ctx.font = 'bold 16px ui-monospace,monospace';
+  var vtm = ctx.measureText ? ctx.measureText(vicTopTitle) : null;
+  var titleHalfW = (vtm && typeof vtm.width === 'number') ? (vtm.width / 2 + 18) : 210;
+  var leftTrophyX = Math.max(18, W / 2 - titleHalfW);
+  var rightTrophyX = Math.min(W - 18, W / 2 + titleHalfW);
+  drawIcon('trophy', leftTrophyX, 24, 15, '#ffe066');
+  drawIcon('trophy', rightTrophyX, 24, 15, '#ffe066');
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#3ddc97';
   ctx.shadowColor = '#3ddc97';
   ctx.shadowBlur = 10;
-  ctx.fillText('SECTOR PURGED // APEX TITAN SLAIN', W/2, 22);
+  ctx.fillText(vicTopTitle, W/2, 22);
   ctx.shadowBlur = 0;
 
   // Sub-telemetry readout
@@ -13817,7 +15585,8 @@ function drawVictory(){
     ctx.fillStyle = '#3ddc97';
     ctx.shadowColor = '#3ddc97';
     ctx.shadowBlur = 10;
-    ctx.fillText('MISSION COMPLETE // DEBRIEF', W / 2, vcy + 32);
+    var debriefTitle = (G.sector === 2) ? 'SECTOR 02 COMPLETE // DEBRIEF' : 'MISSION COMPLETE // DEBRIEF';
+    ctx.fillText(debriefTitle, W / 2, vcy + 32);
     ctx.shadowBlur = 0;
 
     var vicRank = (G.t < 180 ? 'RANK S+ // APEX ACE' : (G.best >= 25 ? 'RANK S // MASTER' : 'RANK A // VETERAN'));
@@ -13839,7 +15608,8 @@ function drawVictory(){
 
     ctx.fillStyle = '#3ddc97';
     ctx.font = 'bold 10px ui-monospace,monospace';
-    ctx.fillText('SECTOR ANOMALY PURGED  •  CORE SYSTEMS STABILIZED', W / 2, vcy + 134);
+    var debriefSub = (G.sector === 2) ? 'VORACIS DESTROYED • COSMIC TRENCH PURIFIED' : 'SECTOR ANOMALY PURGED • CORE SYSTEMS STABILIZED';
+    ctx.fillText(debriefSub, W / 2, vcy + 134);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 11px ui-monospace,monospace';
@@ -13848,9 +15618,14 @@ function drawVictory(){
   }
 
   // Floating bottom action buttons (Sleek HUD buttons, zero blocking modal)
-  var btnW = 155, btnH = 42, gap = 16;
-  var totalW = btnW * 3 + gap * 2;
+  var showSec2Btn = (G.sector === 1);
+  var btnCount = showSec2Btn ? 4 : 3;
+  var gap = 16;
+  var maxTotalW = Math.min(W - 32, btnCount === 4 ? 668 : 500);
+  var btnW = Math.min(155, Math.floor((maxTotalW - gap * (btnCount - 1)) / btnCount));
+  var totalW = btnW * btnCount + gap * (btnCount - 1);
   var startX = Math.round((W - totalW) / 2);
+  var btnH = 44;
   var btnY = H - 62;
 
   G.victoryButtons = [
@@ -13880,6 +15655,17 @@ function drawVictory(){
     }
   ];
 
+  if (showSec2Btn){
+    G.victoryButtons.push({
+      action: 'sector2',
+      keyText: '[4]',
+      label: 'SECTOR 02',
+      icon: 'warp',
+      col: '#bf55ec',
+      rect: { x: startX + (btnW + gap) * 3, y: btnY, w: btnW, h: btnH }
+    });
+  }
+
   for (var i = 0; i < G.victoryButtons.length; i++){
     var b = G.victoryButtons[i];
     var r = b.rect;
@@ -13901,8 +15687,8 @@ function drawVictory(){
     ctx.shadowBlur = 0;
 
     // Key badge [1], [2], [3]
-    var kw = 24, kh = 22;
-    var kx = r.x + 8, ky = r.y + (r.h - kh) / 2;
+    var kw = (btnW < 125) ? 20 : 24, kh = 22;
+    var kx = r.x + (btnW < 125 ? 6 : 8), ky = r.y + (r.h - kh) / 2;
     ctx.fillStyle = isHover ? b.col : 'rgba(255, 255, 255, 0.12)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(kx, ky, kw, kh, 3);
@@ -13916,11 +15702,14 @@ function drawVictory(){
     ctx.fillText(b.keyText, kx + kw / 2, ky + 15);
 
     // Icon & Label
-    drawIcon(b.icon, r.x + 44, r.y + r.h / 2, 14, isHover ? '#ffffff' : b.col);
+    var iconX = r.x + (btnW < 125 ? 36 : 44);
+    drawIcon(b.icon, iconX, r.y + r.h / 2, btnW < 125 ? 12 : 14, isHover ? '#ffffff' : b.col);
     ctx.textAlign = 'left';
-    ctx.font = 'bold 12px ui-monospace,monospace';
+    var labelX = r.x + (btnW < 125 ? 48 : 58);
+    var labelFont = (btnW < 125 ? 'bold 10px ' : 'bold 12px ') + 'ui-monospace,monospace';
+    ctx.font = labelFont;
     ctx.fillStyle = isHover ? '#ffffff' : b.col;
-    ctx.fillText(b.label, r.x + 58, r.y + 26);
+    ctx.fillText(b.label, labelX, r.y + (btnW < 125 ? 25 : 26));
   }
 
   ctx.restore();
@@ -13996,6 +15785,7 @@ function drawDead(){
   var timeStr = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
   var statY = cy0 + 126;
   var col1 = cx0 + 44, col2 = cx0 + cw / 2 + 10;
+  var colW = Math.floor(cw / 2 - 50);
 
   function drawDeadStat(iconName, x, y, label, val, valCol){
     drawIcon(iconName, x + 6, y - 4, 11, valCol || '#35f0ff');
@@ -14005,10 +15795,14 @@ function drawDead(){
     ctx.fillText(label, x + 20, y);
     ctx.fillStyle = valCol || '#ffffff';
     ctx.font = 'bold 12px ui-monospace,monospace';
-    ctx.fillText(val, x + 120, y);
+    ctx.textAlign = 'right';
+    ctx.fillText(val, x + colW, y);
   }
 
-  drawDeadStat('shield',    col1, statY,      'LEVIATHAN STATUS', (G.boss && !G.boss.dormant ? 'AWAKENED' : 'SEALED (LV 10)'), '#35f0ff');
+  var deadBossStat = (G.sector === 2) ?
+    (G.boss ? (G.boss.phase2 ? 'VORACIS P2' : 'VORACIS P1') : ('SECTOR 2 W' + G.wave)) :
+    (G.boss && !G.boss.dormant ? 'AWAKENED' : 'SEALED (LV 10)');
+  drawDeadStat(G.sector === 2 ? 'skull' : 'shield', col1, statY, G.sector === 2 ? 'GARGANTUA STATUS' : 'LEVIATHAN STATUS', deadBossStat, '#35f0ff');
   drawDeadStat('clock',     col2, statY,      'SURVIVAL TIME', timeStr, '#35f0ff');
   drawDeadStat('crosshair', col1, statY + 28, 'HOSTILES PURGED', '' + G.kills, '#35f0ff');
   drawDeadStat('flame',     col2, statY + 28, 'PEAK STREAK', 'x' + G.best, '#ffe066');
@@ -14141,15 +15935,13 @@ function drawSkillSwapTray(){
   var sk = G.pendingSkill;
   if (!sk) return;
 
-  var skW = Math.max(160, Math.min(220, Math.floor(W * 0.18)));
-  var midX = 18 + skW + 12;
-  var midW = (W - 18) - midX;
   var cardY = (G.buffTray && G.buffTray.active) ? G.buffTray.animY : G.skillSwapTray.animY;
   var ch = 44;
-  var gap = 10;
-  var cw = Math.min(230, Math.floor((midW - gap * 2) / 3));
+  var gap = 12;
+  var maxTrayW = Math.min(W - 80, 720);
+  var cw = Math.min(220, Math.floor((maxTrayW - gap * 2) / 3));
   var totalW = cw * 3 + gap * 2;
-  var startX = midX + Math.max(0, (midW - totalW) / 2);
+  var startX = Math.round((W - totalW) / 2);
 
   G.skillSwapCardQ = { x: startX, y: cardY, w: cw, h: ch };
   G.skillSwapCardSalvage = { x: startX + cw + gap, y: cardY, w: cw, h: ch };
@@ -14158,9 +15950,11 @@ function drawSkillSwapTray(){
 
   // Harmonize rects if already rendered via unified buffTray
   if (G.buffTray && G.buffTray.active && G.buffTray.cards && G.buffTray.cards.length >= 3){
-    G.buffTray.cards[0].rect = G.skillSwapCardQ;
-    G.buffTray.cards[1].rect = G.skillSwapCardSalvage;
-    G.buffTray.cards[2].rect = G.skillSwapCardRepair;
+    var bCards = G.buffTray.cards;
+    G.skillSwapCardQ = bCards[0].rect || G.skillSwapCardQ;
+    G.skillSwapCardSalvage = bCards[1].rect || G.skillSwapCardSalvage;
+    G.skillSwapCardRepair = bCards[2].rect || G.skillSwapCardRepair;
+    G.skillSwapCardDiscard = G.skillSwapCardSalvage;
     return;
   }
 
@@ -14182,11 +15976,15 @@ function drawSkillSwapTray(){
   ctx.save();
   ctx.shadowBlur = 14; ctx.shadowColor = sk.col || '#ffe066';
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 12px ui-monospace,monospace';
+  var swapPrompt = 'CORE CAPACITY REACHED // ' + sk.name.toUpperCase() + ' (CD ' + sk.cd + 's) RECOVERED // CHOOSE REPLACEMENT';
+  var promptFont = (W < 750 ? 'bold 10px ' : 'bold 12px ') + 'ui-monospace,monospace';
+  ctx.font = promptFont;
   ctx.textAlign = 'center';
   ctx.globalAlpha = Math.min(1, Math.max(0, (H - cardY + 50) / 100)) * pulse;
-  drawIcon('chip', W / 2 - 220, promptY - 4, 13, sk.col || '#ffe066');
-  ctx.fillText('CORE CAPACITY REACHED // ' + sk.name.toUpperCase() + ' (CD ' + sk.cd + 's) RECOVERED // CHOOSE REPLACEMENT', W / 2 + 10, promptY);
+  var ptm = ctx.measureText ? ctx.measureText(swapPrompt) : null;
+  var promptHalfW = (ptm && typeof ptm.width === 'number') ? (ptm.width / 2 + 16) : 220;
+  drawIcon('chip', Math.max(16, W / 2 - promptHalfW), promptY - 4, 12, sk.col || '#ffe066');
+  ctx.fillText(swapPrompt, W / 2 + 6, promptY);
   ctx.restore();
 
   var cards = [
@@ -14767,8 +16565,10 @@ function drawGodModeModal(){
   ctx.font = 'bold 12px ui-monospace,monospace';
   ctx.fillText('ARENA SIMULATION COMMANDS', col2X + 14, colY + 270);
 
+  var col2BtnW = Math.min(310, colW - 28);
+
   // Spawn Selected Boss Now
-  godBtn(col2X + 14, colY + 286, 310, 28, 'AWAKEN ABYSS LEVIATHAN NOW', function(){
+  godBtn(col2X + 14, colY + 286, col2BtnW, 28, 'AWAKEN ABYSS LEVIATHAN NOW', function(){
     closeGodMode();
     if (G.state === 'title'){
       startGame(6);
@@ -14783,7 +16583,7 @@ function drawGodModeModal(){
   });
 
   // EMP Kill All Hostiles
-  godBtn(col2X + 14, colY + 322, 310, 28, 'EMP: OBLITERATE HOSTILES', function(){
+  godBtn(col2X + 14, colY + 322, col2BtnW, 28, 'EMP: OBLITERATE HOSTILES', function(){
     sound.skillNova();
     G.shake = 18; G.flash = 0.5;
     var px = p ? p.x : ARENA/2, py = p ? p.y : ARENA/2;
@@ -14800,7 +16600,7 @@ function drawGodModeModal(){
   });
 
   // Spawn 50 XP Orbs
-  godBtn(col2X + 14, colY + 358, 310, 28, 'SPAWN 50 EXP CORES', function(){
+  godBtn(col2X + 14, colY + 358, col2BtnW, 28, 'SPAWN 50 EXP CORES', function(){
     sound.orb();
     var px = p ? p.x : ARENA/2, py = p ? p.y : ARENA/2;
     for (var oi = 0; oi < 50; oi++){
@@ -14817,7 +16617,9 @@ function drawGodModeModal(){
 
   // Bottom Action Bar
   var btmY = my + mh - 54;
-  godBtn(mx + 20, btmY, 440, 38, 'LAUNCH / RESUME RUN', function(){
+  var btmLaunchW = Math.min(440, Math.floor((mw - 60) * 0.68));
+  var btmCloseW = Math.min(200, mw - 60 - btmLaunchW);
+  godBtn(mx + 20, btmY, btmLaunchW, 38, 'LAUNCH / RESUME RUN', function(){
     if (G.godModePrevState === 'title'){
       startGame(ov.targetWave || 1);
     } else {
@@ -14828,7 +16630,7 @@ function drawGodModeModal(){
     font: 'bold 13px ui-monospace,monospace'
   });
 
-  godBtn(mx + 480, btmY, 200, 38, 'CLOSE CONSOLE [ESC]', function(){
+  godBtn(mx + 40 + btmLaunchW, btmY, btmCloseW, 38, 'CLOSE CONSOLE [ESC]', function(){
     closeGodMode();
   }, {
     border: '#678195', txtCol: '#9fb6c8', bg: 'rgba(100, 116, 139, 0.15)',
@@ -14935,12 +16737,14 @@ function drawTitle(){
     ctx.fillText('RECORD: LEVEL ' + maxLvl + '  •  ' + HIGH_SCORE.kills + ' KILLS  •  MAX x' + HIGH_SCORE.streak + ' STREAK', W/2, H*0.54);
   }
 
+  var subFontSz = Math.min(14, Math.max(9, Math.floor(W / 65)));
   ctx.fillStyle = '#9fb6c8';
-  ctx.font = '14px ui-monospace,monospace';
+  ctx.font = subFontSz + 'px ui-monospace,monospace';
   ctx.fillText('repel 5 hostile waves  •  stabilize combat enhancements  •  breach stasis egg  •  destroy the titan', W/2, H*0.58);
 
+  var ctrlFontSz = Math.min(15, Math.max(10, Math.floor(W / 58)));
   ctx.fillStyle = '#35f0ff';
-  ctx.font = 'bold 15px ui-monospace,monospace';
+  ctx.font = 'bold ' + ctrlFontSz + 'px ui-monospace,monospace';
   ctx.fillText('[WASD] MOVE   •   [ARROWS] DIRECTIONAL FIRE   •   [SPACE] DASH   •   [Q] SKILL   •   [P] PAUSE', W/2, H*0.63);
 
   ctx.fillStyle = '#7de8ff';
