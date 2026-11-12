@@ -16,7 +16,8 @@ const tests = [
   'test_victory_boss_death_animation.js',
   'test_map_exploration_pois.js',
   'test_egg_rework.js',
-  'test_voracis_sector2.js'
+  'test_voracis_sector2.js',
+  'test_v2_new_skills.js'
 ];
 
 let failed = 0;
