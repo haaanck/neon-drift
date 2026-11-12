@@ -9018,7 +9018,7 @@ function drawVoracisBoss(b){
   var sc = 0.5 + 0.5 * Math.min(1, b.spawn);
   ctx.scale(sc, sc);
 
-  // --- LAYER 1: WRITHING POSTERIOR TENDRILS (8 Barbed Appendages) ---
+  // --- LAYER 1: WRITHING POSTERIOR TENDRILS (8 Articulated Barbed Appendages) ---
   var tendrilCount = 8;
   for (var ti = 0; ti < tendrilCount; ti++){
     var tAnchorA = Math.PI - 0.75 + (ti / (tendrilCount - 1)) * 1.5;
@@ -9027,8 +9027,16 @@ function drawVoracisBoss(b){
     var tPhase = t * (isP2 ? 7.5 : 5.0) + ti * 0.85;
 
     ctx.save();
+    // Segmented chitinous socket plate at tendril root
+    ctx.fillStyle = '#18041c';
+    ctx.strokeStyle = isP2 ? '#ff0055' : '#7b2cbf';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(tBaseX, tBaseY, 6, 0, TAU);
+    ctx.fill(); ctx.stroke();
+
     ctx.strokeStyle = isP2 ? '#ff0055' : '#bf55ec';
-    ctx.lineWidth = Math.max(1.5, (isP2 ? 3.5 : 2.5) * (1 - ti / 12));
+    ctx.lineWidth = Math.max(1.5, (isP2 ? 3.6 : 2.6) * (1 - ti / 12));
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(tBaseX, tBaseY);
@@ -9044,11 +9052,19 @@ function drawVoracisBoss(b){
     }
     ctx.stroke();
 
-    // Barbed hook spine at tendril tip
+    // Dual barbed hook recurve spine at tendril tip
     ctx.fillStyle = isP2 ? '#ff0033' : '#ffe066';
     ctx.beginPath();
     ctx.arc(curX, curY, isP2 ? 4.5 : 3.5, 0, TAU);
     ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(curX, curY);
+    ctx.lineTo(curX + Math.cos(tAnchorA - 0.4) * 6, curY + Math.sin(tAnchorA - 0.4) * 6);
+    ctx.moveTo(curX, curY);
+    ctx.lineTo(curX + Math.cos(tAnchorA + 0.4) * 6, curY + Math.sin(tAnchorA + 0.4) * 6);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -9059,7 +9075,7 @@ function drawVoracisBoss(b){
     var ribX = -r * 0.45 + ri * (r * 0.26);
     var ribSpread = (r * 0.55 + Math.sin(ribFrac * Math.PI) * r * 0.25) * (1 + ribFlex);
 
-    // Glowing ventral organ sacs between the ribs
+    // Glowing ventral organ sacs between the ribs (biological respiration)
     ctx.fillStyle = isP2 ? 'rgba(255, 0, 51, 0.45)' : 'rgba(191, 85, 236, 0.35)';
     ctx.beginPath();
     ctx.ellipse(ribX, 0, r * 0.14, ribSpread * 0.75, 0, 0, TAU);
@@ -9070,6 +9086,13 @@ function drawVoracisBoss(b){
     ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.arc(ribX, 0, ribSpread, -Math.PI * 0.45, Math.PI * 0.45, false);
+    ctx.stroke();
+
+    // Specular bone highlight ridge
+    ctx.strokeStyle = isP2 ? '#ff8fd8' : '#e0aaff';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(ribX, 0, ribSpread * 0.94, -Math.PI * 0.38, Math.PI * 0.38, false);
     ctx.stroke();
   }
 
@@ -9086,7 +9109,15 @@ function drawVoracisBoss(b){
     ctx.translate(shoulderX, shoulderY);
     ctx.rotate(baseScytheA);
 
-    // Upper limb segment
+    // Coxa / shoulder muscular joint socket
+    ctx.fillStyle = '#1c051a';
+    ctx.strokeStyle = isP2 ? '#ff0055' : '#7b2cbf';
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.arc(0, 0, 7, 0, TAU);
+    ctx.fill(); ctx.stroke();
+
+    // Upper limb segment (femur)
     ctx.strokeStyle = isP2 ? '#ff0033' : '#4a154b';
     ctx.lineWidth = 6;
     ctx.lineCap = 'round';
@@ -9102,7 +9133,7 @@ function drawVoracisBoss(b){
     ctx.arc(elbowX, elbowY, 5, 0, TAU);
     ctx.fill();
 
-    // Curved razor scythe sickle blade
+    // Curved razor scythe sickle blade with beveled spine
     ctx.beginPath();
     ctx.moveTo(elbowX, elbowY);
     ctx.quadraticCurveTo(elbowX + r * 0.65, elbowY - sSide * r * 0.15, elbowX + r * 0.75, elbowY + sSide * r * 0.65);
@@ -9113,6 +9144,14 @@ function drawVoracisBoss(b){
     ctx.fill();
     ctx.strokeStyle = isP2 ? '#ffffff' : (b.flash > 0 ? '#ffffff' : '#ffe066');
     ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Specular cutting edge bevel
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.moveTo(elbowX + r * 0.15, elbowY + sSide * r * 0.08);
+    ctx.quadraticCurveTo(elbowX + r * 0.55, elbowY - sSide * r * 0.08, elbowX + r * 0.73, elbowY + sSide * r * 0.62);
     ctx.stroke();
 
     // Scythe blade slash trail flare
@@ -9163,6 +9202,14 @@ function drawVoracisBoss(b){
     ctx.strokeStyle = '#3c1266';
     ctx.lineWidth = 3;
     ctx.stroke();
+
+    // Longitudinal dorsal armor seam
+    ctx.strokeStyle = 'rgba(191, 85, 236, 0.5)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, 0);
+    ctx.lineTo(r * 0.25, 0);
+    ctx.stroke();
   }
 
   // --- LAYER 5: ARMORED CRANIAL CARAPACE & MOLTED RUPTURE SHARDS ---
@@ -9190,7 +9237,7 @@ function drawVoracisBoss(b){
       ctx.restore();
     }
   } else {
-    // Phase 1: Pristine cranial obsidian crown
+    // Phase 1: Pristine cranial obsidian crown with beveled facets
     ctx.beginPath();
     ctx.moveTo(r * 0.75, 0);
     ctx.lineTo(r * 0.35, -r * 0.55);
@@ -9203,6 +9250,14 @@ function drawVoracisBoss(b){
     ctx.fill();
     ctx.strokeStyle = col;
     ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Specular cranial facets
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.55, 0); ctx.lineTo(r * 0.2, -r * 0.35);
+    ctx.moveTo(r * 0.55, 0); ctx.lineTo(r * 0.2, r * 0.35);
     ctx.stroke();
   }
 
@@ -9262,6 +9317,13 @@ function drawVoracisBoss(b){
     var jty = -r * 0.04 + jti * 3;
     ctx.fillRect(jtx, jty, 3, 4);
   }
+  // Chitinous armor ridge on left mandible
+  ctx.strokeStyle = isP2 ? '#ff8fd8' : '#e0aaff';
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  ctx.moveTo(r * 0.15, -r * 0.10);
+  ctx.quadraticCurveTo(r * 0.45, -r * 0.18, r * 0.65, 0);
+  ctx.stroke();
   ctx.restore();
 
   // C. Right Mandible (Sickle jaw, rotates outward by +curJawA)
@@ -9285,6 +9347,13 @@ function drawVoracisBoss(b){
     var jty2 = r * 0.04 - jti2 * 3;
     ctx.fillRect(jtx2, jty2, 3, -4);
   }
+  // Chitinous armor ridge on right mandible
+  ctx.strokeStyle = isP2 ? '#ff8fd8' : '#e0aaff';
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  ctx.moveTo(r * 0.15, r * 0.10);
+  ctx.quadraticCurveTo(r * 0.45, r * 0.18, r * 0.65, 0);
+  ctx.stroke();
   ctx.restore();
 
   // D. Upper Cranial Dorsal Mandible / Horn Plate
@@ -10178,20 +10247,21 @@ function drawEnemyModel(e){
     case 'drifter':
       // Kinetic flex on swept razor wings
       var wingFlex = Math.sin(t*9 + e.x*0.08) * 0.14;
+      var dPulse = 0.5 + 0.5 * Math.sin(t * 12 + e.x);
 
-      // Layer 1: Dual micro-ion thrusters at tail
+      // Layer 1: Dual micro-ion thrusters with supersonic shock diamonds
       for (var ti = -1; ti <= 1; ti += 2){
         var ty = ti * r * 0.32;
-        var tFlame = (0.28 + Math.sin(t * 30 + ti * 2) * 0.12) * r;
+        var tFlame = (0.30 + Math.sin(t * 30 + ti * 2) * 0.14) * r;
 
-        // Nozzle cowl
+        // Titanium nozzle cowl
         ctx.fillStyle = '#08060c';
-        ctx.fillRect(-r * 0.58, ty - r * 0.09, r * 0.12, r * 0.18);
-        ctx.strokeStyle = 'rgba(255, 77, 109, 0.4)';
+        ctx.fillRect(-r * 0.58, ty - r * 0.09, r * 0.14, r * 0.18);
+        ctx.strokeStyle = 'rgba(255, 77, 109, 0.5)';
         ctx.lineWidth = 1;
-        ctx.strokeRect(-r * 0.58, ty - r * 0.09, r * 0.12, r * 0.18);
+        ctx.strokeRect(-r * 0.58, ty - r * 0.09, r * 0.14, r * 0.18);
 
-        // Plume
+        // Outer ion plume
         ctx.fillStyle = col;
         ctx.beginPath();
         ctx.moveTo(-r * 0.55, ty - r * 0.08);
@@ -10200,17 +10270,32 @@ function drawEnemyModel(e){
         ctx.closePath();
         ctx.fill();
 
-        // White-hot core
+        // Supersonic shock diamond
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
+        var sdx = -r * 0.55 - tFlame * 0.45;
+        ctx.moveTo(sdx - 2, ty);
+        ctx.lineTo(sdx, ty - 2);
+        ctx.lineTo(sdx + 2, ty);
+        ctx.lineTo(sdx, ty + 2);
+        ctx.closePath();
+        ctx.fill();
+
+        // White-hot core
+        ctx.beginPath();
         ctx.moveTo(-r * 0.55, ty - r * 0.04);
-        ctx.lineTo(-r * 0.55 - tFlame * 0.5, ty);
+        ctx.lineTo(-r * 0.55 - tFlame * 0.6, ty);
         ctx.lineTo(-r * 0.55, ty + r * 0.04);
         ctx.closePath();
         ctx.fill();
       }
 
-      // Layer 2: Outer Faceted Razor-Wing Carapace
+      // Layer 2: Underglow Silhouette Pass
+      ctx.save();
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = 'rgba(255, 77, 109, 0.4)';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(r * 1.05, 0);
       ctx.lineTo(r * 0.25, -r * 0.28);
@@ -10221,11 +10306,27 @@ function drawEnemyModel(e){
       ctx.lineTo(-r * 0.55, r * (0.9 + wingFlex));
       ctx.lineTo(r * 0.25, r * 0.28);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(10, 8, 18, 0.90)';
+      ctx.stroke();
+      ctx.restore();
+
+      // Layer 3: Outer Faceted Razor-Wing Carapace
+      ctx.beginPath();
+      ctx.moveTo(r * 1.05, 0);
+      ctx.lineTo(r * 0.25, -r * 0.28);
+      ctx.lineTo(-r * 0.55, -r * (0.9 + wingFlex));
+      ctx.lineTo(-r * 0.70, -r * (0.65 + wingFlex));
+      ctx.lineTo(-r * 0.15, 0);
+      ctx.lineTo(-r * 0.70, r * (0.65 + wingFlex));
+      ctx.lineTo(-r * 0.55, r * (0.9 + wingFlex));
+      ctx.lineTo(r * 0.25, r * 0.28);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(10, 8, 18, 0.92)';
       ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.8;
       ctx.stroke();
 
-      // Layer 3: Inner Wing Armor Inset
+      // Layer 4: Inner Wing Armor Inset & Specular Bevel Seams
       ctx.beginPath();
       ctx.moveTo(r * 0.65, 0);
       ctx.lineTo(r * 0.10, -r * 0.20);
@@ -10234,59 +10335,92 @@ function drawEnemyModel(e){
       ctx.lineTo(-r * 0.40, r * 0.55);
       ctx.lineTo(r * 0.10, r * 0.20);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(24, 10, 24, 0.75)';
+      ctx.fillStyle = 'rgba(24, 10, 24, 0.78)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 77, 109, 0.5)';
+      ctx.strokeStyle = 'rgba(255, 77, 109, 0.55)';
       ctx.lineWidth = 1.0;
+      ctx.stroke();
+
+      // Hard-light specular edge ridges along leading edges
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(r * 1.0, 0); ctx.lineTo(r * 0.25, -r * 0.26); ctx.lineTo(-r * 0.52, -r * (0.88 + wingFlex));
+      ctx.moveTo(r * 1.0, 0); ctx.lineTo(r * 0.25, r * 0.26);  ctx.lineTo(-r * 0.52, r * (0.88 + wingFlex));
       ctx.stroke();
 
       // Wing panel bevel lines
       ctx.beginPath();
       ctx.moveTo(r * 0.35, 0); ctx.lineTo(-r * 0.45, -r * 0.55);
       ctx.moveTo(r * 0.35, 0); ctx.lineTo(-r * 0.45, r * 0.55);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
       ctx.lineWidth = 1; ctx.stroke();
 
-      // Prow razor mandibles with glowing tips
+      // Articulated prow razor mandibles with glowing tips
+      var mandGape = Math.sin(t * 10 + e.x) * 0.08;
       ctx.beginPath();
-      ctx.moveTo(r * 0.65, -r * 0.15); ctx.lineTo(r * 1.25, -r * 0.22); ctx.lineTo(r * 0.85, -r * 0.05);
-      ctx.moveTo(r * 0.65, r * 0.15);  ctx.lineTo(r * 1.25, r * 0.22);  ctx.lineTo(r * 0.85, r * 0.05);
-      ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(r * 1.22, -r * 0.23, 2, 2);
-      ctx.fillRect(r * 1.22, r * 0.21, 2, 2);
-
-      // Rotating inner gyro core
-      var gyroRot = t * 3.8;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.22, gyroRot, gyroRot + Math.PI * 0.85);
+      ctx.moveTo(r * 0.65, -r * 0.15); ctx.lineTo(r * 1.25, -r * (0.22 + mandGape)); ctx.lineTo(r * 0.85, -r * 0.05);
+      ctx.moveTo(r * 0.65, r * 0.15);  ctx.lineTo(r * 1.25, r * (0.22 + mandGape));  ctx.lineTo(r * 0.85, r * 0.05);
       ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
 
-      // Glowing ocular sensor array with pupil glint
-      ctx.beginPath(); ctx.arc(r*0.15, 0, r*0.24, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(r * 1.22, -r * (0.23 + mandGape), 2.5, 2.5);
+      ctx.fillRect(r * 1.22, r * (0.21 + mandGape), 2.5, 2.5);
+
+      // Rotating inner gyro core with specular highlight
+      var gyroRot = t * 4.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.24, gyroRot, gyroRot + Math.PI * 0.85);
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.18, -gyroRot * 1.5, -gyroRot * 1.5 + Math.PI * 0.7);
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.1; ctx.stroke();
+
+      // Glowing ocular sensor array with biological respiration pulse
+      ctx.beginPath(); ctx.arc(r*0.15, 0, r*(0.22 + dPulse * 0.04), 0, TAU);
       ctx.fillStyle = col; ctx.fill();
       ctx.beginPath(); ctx.arc(r*0.15, 0, r*0.1, 0, TAU);
       ctx.fillStyle = '#ffffff'; ctx.fill();
       break;
 
     case 'brute':
-      // Layer 1: Rear heavy thrusters
-      for (var bti = -1; bti <= 1; bti += 2){
-        var bty = bti * r * 0.35;
-        var btFlame = (0.25 + Math.sin(t * 22 + bti) * 0.10) * r;
-        ctx.fillStyle = '#ff7b00';
+      // Juggernaut Heavy Assault Tank
+      var bPulse = 0.5 + 0.5 * Math.sin(t * 8 + e.x);
+
+      // Layer 1: Rear heavy thrusters (3 nozzles)
+      for (var bti = -1; bti <= 1; bti++){
+        var bty = bti * r * 0.32;
+        var btFlame = (0.28 + Math.sin(t * 22 + bti * 2) * 0.12) * r;
+        ctx.fillStyle = '#0b101c';
+        ctx.fillRect(-r * 0.86, bty - r * 0.10, r * 0.12, r * 0.20);
+        ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1.0;
+        ctx.strokeRect(-r * 0.86, bty - r * 0.10, r * 0.12, r * 0.20);
+
+        ctx.fillStyle = '#ff5400';
         ctx.beginPath();
-        ctx.moveTo(-r * 0.82, bty - r * 0.12);
-        ctx.lineTo(-r * 0.82 - btFlame, bty);
-        ctx.lineTo(-r * 0.82, bty + r * 0.12);
+        ctx.moveTo(-r * 0.84, bty - r * 0.10);
+        ctx.lineTo(-r * 0.84 - btFlame, bty);
+        ctx.lineTo(-r * 0.84, bty + r * 0.10);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ffe066';
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.84, bty - r * 0.05);
+        ctx.lineTo(-r * 0.84 - btFlame * 0.55, bty);
+        ctx.lineTo(-r * 0.84, bty + r * 0.05);
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-r * 0.82, bty - 2, 3, 4);
+        ctx.fillRect(-r * 0.84, bty - 2, 3, 4);
       }
 
-      // Layer 2: Heavy Interlocking Octagonal Blast Plates
+      // Layer 2: Underglow Silhouette Pass
+      ctx.save();
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = 'rgba(255, 77, 109, 0.45)';
+      ctx.lineWidth = 3.0;
       ctx.beginPath();
       for (var i = 0; i < 6; i++){
         var a = i/6*TAU;
@@ -10294,31 +10428,59 @@ function drawEnemyModel(e){
         if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
       }
       ctx.closePath();
-      ctx.fillStyle = 'rgba(10, 14, 24, 0.92)';
+      ctx.stroke();
+      ctx.restore();
+
+      // Layer 3: Heavy Interlocking Octagonal Blast Plates
+      ctx.beginPath();
+      for (var i2 = 0; i2 < 6; i2++){
+        var a2_poly = i2/6*TAU;
+        var px2 = Math.cos(a2_poly)*r, py2 = Math.sin(a2_poly)*r;
+        if (i2) ctx.lineTo(px2, py2); else ctx.moveTo(px2, py2);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(10, 14, 24, 0.94)';
       ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.4;
       ctx.stroke();
 
-      // Layer 3: Armored vertex bolt studs
+      // Specular hard-light edge bevels on outer hull facets
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      for (var sfi = 0; sfi < 3; sfi++){
+        var sfa1 = sfi/6*TAU, sfa2 = (sfi+1)/6*TAU;
+        ctx.moveTo(Math.cos(sfa1)*r*0.96, Math.sin(sfa1)*r*0.96);
+        ctx.lineTo(Math.cos(sfa2)*r*0.96, Math.sin(sfa2)*r*0.96);
+      }
+      ctx.stroke();
+
+      // Layer 4: Armored vertex bolt studs
       ctx.fillStyle = '#ffffff';
       for (var bi = 0; bi < 6; bi++){
         var ba = bi/6*TAU;
         ctx.beginPath();
-        ctx.arc(Math.cos(ba)*r*0.88, Math.sin(ba)*r*0.88, Math.max(1, r*0.06), 0, TAU);
+        ctx.arc(Math.cos(ba)*r*0.88, Math.sin(ba)*r*0.88, Math.max(1.2, r*0.065), 0, TAU);
         ctx.fill();
       }
 
-      // Layer 4: Hydraulic shock-absorber struts on flanks
+      // Layer 5: Hydraulic shock-absorber struts & side pauldrons
       for (var si = -1; si <= 1; si += 2){
         var sy = si * r * 0.58;
         ctx.fillStyle = '#161e30';
         ctx.fillRect(-r*0.48, sy - r*0.12, r*0.75, r*0.24);
-        ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+        ctx.strokeStyle = col; ctx.lineWidth = 1.4;
         ctx.strokeRect(-r*0.48, sy - r*0.12, r*0.75, r*0.24);
+
+        // Piston shaft
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(r * 0.20, sy - 1.5, 3, 3);
+        ctx.fillRect(-r * 0.15, sy - 1.5, r * 0.35, 3);
+        ctx.fillStyle = '#ff7b00';
+        ctx.fillRect(r * 0.20, sy - 2, 3, 4);
       }
 
-      // Layer 5: Motorized inner rotating gear armor
+      // Layer 6: Motorized inner rotating gear armor
       var gearRot = t * 1.5;
       ctx.beginPath();
       for (var j = 0; j < 6; j++){
@@ -10327,40 +10489,92 @@ function drawEnemyModel(e){
         if (j) ctx.lineTo(qx, qy); else ctx.moveTo(qx, qy);
       }
       ctx.closePath();
-      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.stroke();
 
-      // Counter-rotating inner serrated ring
+      // Counter-rotating inner serrated ring with specular glint
       ctx.beginPath();
       ctx.arc(0, 0, r * 0.36, -gearRot * 1.8, -gearRot * 1.8 + Math.PI * 1.1);
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
 
-      // Layer 6: Glowing thermal heatsink vent
-      var heatPulse = 0.5 + 0.5 * Math.sin(t * 8 + e.x);
-      ctx.fillStyle = 'rgba(255, 140, 40, ' + (0.35 + heatPulse * 0.45) + ')';
+      // Layer 7: Glowing thermal heatsink vent (thermal respiration pulse)
+      ctx.fillStyle = 'rgba(255, 140, 40, ' + (0.35 + bPulse * 0.45) + ')';
       ctx.fillRect(-r * 0.22, -r * 0.35, r * 0.16, r * 0.7);
+      ctx.strokeStyle = 'rgba(255, 224, 102, 0.6)'; ctx.lineWidth = 1;
+      for (var hvi = -2; hvi <= 2; hvi++){
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.22, hvi * r * 0.14);
+        ctx.lineTo(-r * 0.06, hvi * r * 0.14);
+        ctx.stroke();
+      }
 
-      // Layer 7: Central heavy cyclopean core
-      ctx.beginPath(); ctx.arc(0, 0, r*0.22, 0, TAU); ctx.fillStyle = col; ctx.fill();
-      ctx.beginPath(); ctx.arc(0, 0, r*0.09, 0, TAU); ctx.fillStyle = '#ffffff'; ctx.fill();
+      // Layer 8: Central heavy cyclopean core
+      ctx.beginPath(); ctx.arc(0, 0, r*(0.22 + bPulse * 0.03), 0, TAU); ctx.fillStyle = col; ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, r*0.10, 0, TAU); ctx.fillStyle = '#ffffff'; ctx.fill();
       break;
 
     case 'shooter':
+      // Diamond stealth chassis & sniper platform
+      var charge = e.shootT < 0.55 ? 1 - e.shootT/0.55 : 0;
+      var sPulse = 0.5 + 0.5 * Math.sin(t * 10);
+
       // Layer 1: Rear stabilizer fins & micro-thrusters
       ctx.fillStyle = '#080a14';
       ctx.fillRect(-r * 0.95, -r * 0.18, r * 0.25, r * 0.36);
-      ctx.strokeStyle = 'rgba(179, 136, 255, 0.4)';
+      ctx.strokeStyle = 'rgba(179, 136, 255, 0.5)';
       ctx.lineWidth = 1;
       ctx.strokeRect(-r * 0.95, -r * 0.18, r * 0.25, r * 0.36);
 
-      // Layer 2: Diamond stealth chassis
+      // Articulated cooling vanes that flare outward during charge
+      var vaneFlare = charge * 0.18;
+      for (var vni = -1; vni <= 1; vni += 2){
+        ctx.save();
+        ctx.translate(-r * 0.4, vni * r * 0.45);
+        ctx.rotate(vni * vaneFlare);
+        ctx.fillStyle = '#140c24';
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-r * 0.3, vni * r * 0.22);
+        ctx.lineTo(r * 0.1, vni * r * 0.15);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+
+      // Layer 2: Underglow Silhouette Pass
+      ctx.save();
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = 'rgba(179, 136, 255, 0.4)';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(r * 0.75, 0);
       ctx.lineTo(-r * 0.1, -r * 0.85);
       ctx.lineTo(-r * 0.9, 0);
       ctx.lineTo(-r * 0.1, r * 0.85);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(8, 12, 22, 0.88)';
+      ctx.stroke();
+      ctx.restore();
+
+      // Layer 3: Diamond stealth chassis
+      ctx.beginPath();
+      ctx.moveTo(r * 0.75, 0);
+      ctx.lineTo(-r * 0.1, -r * 0.85);
+      ctx.lineTo(-r * 0.9, 0);
+      ctx.lineTo(-r * 0.1, r * 0.85);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(8, 12, 22, 0.90)';
       ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      // Hard-light specular edge chamfers
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.72, 0); ctx.lineTo(-r * 0.08, -r * 0.82);
       ctx.stroke();
 
       // Inner stealth facet line
@@ -10370,30 +10584,38 @@ function drawEnemyModel(e){
       ctx.lineTo(-r * 0.6, 0);
       ctx.lineTo(-r * 0.1, r * 0.50);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(18, 12, 32, 0.75)';
+      ctx.fillStyle = 'rgba(18, 12, 32, 0.78)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(179, 136, 255, 0.4)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(179, 136, 255, 0.5)';
+      ctx.lineWidth = 1.1;
       ctx.stroke();
 
-      // Layer 3: Dual forward electromagnetic accelerator rails
-      ctx.lineWidth = 1.6;
+      // Layer 4: Dual forward electromagnetic accelerator rails
+      ctx.lineWidth = 1.8;
       ctx.strokeStyle = col;
       ctx.beginPath();
       ctx.moveTo(r * 0.35, -r * 0.26); ctx.lineTo(r * 1.35, -r * 0.22);
       ctx.moveTo(r * 0.35, r * 0.26);  ctx.lineTo(r * 1.35, r * 0.22);
       ctx.stroke();
 
-      // Magnetic induction cross-bands
+      // Rail specular ridges
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.4, -r * 0.28); ctx.lineTo(r * 1.33, -r * 0.24);
+      ctx.moveTo(r * 0.4, r * 0.24);  ctx.lineTo(r * 1.33, r * 0.20);
+      ctx.stroke();
+
+      // Magnetic induction cross-bands with energy pulsing
       for (var mii = 0; mii < 3; mii++){
         var mx = r * (0.60 + mii * 0.24);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)'; ctx.lineWidth = 1;
+        var coilGlow = 0.5 + 0.5 * Math.sin(t * 16 + mii);
+        ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.5 + coilGlow * 0.5) + ')';
+        ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.moveTo(mx, -r*0.30); ctx.lineTo(mx, -r*0.18); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(mx, r*0.18);  ctx.lineTo(mx, r*0.30);  ctx.stroke();
       }
 
-      // Layer 4: Kinetic charging capacitor array and target flare
-      var charge = e.shootT < 0.55 ? 1 - e.shootT/0.55 : 0;
+      // Layer 5: Kinetic charging capacitor array and targeting optics
       ctx.beginPath(); ctx.arc(0, 0, r*(0.2 + charge*0.32), 0, TAU);
       ctx.fillStyle = charge > 0.1 ? '#ffffff' : col;
       ctx.fill();
@@ -10407,19 +10629,28 @@ function drawEnemyModel(e){
         if (charge > 0.55){
           ctx.beginPath();
           ctx.moveTo(r * 1.35, -r * 0.22);
-          ctx.lineTo(r * 1.35 + (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 8);
+          ctx.lineTo(r * 1.35 + (Math.sin(t * 40) * 4), 0);
           ctx.lineTo(r * 1.35, r * 0.22);
-          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.8; ctx.stroke();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.0; ctx.stroke();
         }
       }
       break;
 
     case 'splitter':
-      // Layer 1: Geodesic fission containment sphere
+      // Geodesic fission containment sphere & motorized titanium claws
+      var fPulse = 0.5 + 0.5 * Math.sin(t * 7 + e.x);
+
+      // Layer 1: Geodesic fission containment sphere underglow
+      ctx.save();
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 9;
       ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
-      ctx.fillStyle = 'rgba(10, 6, 20, 0.88)';
+      ctx.fillStyle = 'rgba(10, 6, 20, 0.90)';
       ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.0;
       ctx.stroke();
+      ctx.restore();
 
       // Outer hexagonal containment grid
       ctx.beginPath();
@@ -10430,23 +10661,44 @@ function drawEnemyModel(e){
         if (spi === 0) ctx.moveTo(spx, spy); else ctx.lineTo(spx, spy);
       }
       ctx.closePath();
-      ctx.strokeStyle = 'rgba(61, 220, 151, 0.4)';
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = 'rgba(61, 220, 151, 0.45)';
+      ctx.lineWidth = 1.3;
       ctx.stroke();
 
-      // Layer 2: 3 motorized titanium containment claws
+      // Specular hard-light rim highlight
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.96, -0.6, 0.6, false);
+      ctx.stroke();
+
+      // Layer 2: 3 articulated motorized titanium containment claws
       for (var k = 0; k < 3; k++){
         var a3 = k/3*TAU + t*1.1;
         ctx.beginPath();
         ctx.arc(0, 0, r*0.52, a3, a3 + TAU/3*0.8);
         ctx.strokeStyle = col;
-        ctx.lineWidth = Math.max(1.5, r*0.14);
+        ctx.lineWidth = Math.max(1.8, r*0.15);
         ctx.stroke();
 
-        // Claw grip node
+        // Claw grip node with articulated knuckle
         var chx = Math.cos(a3) * r * 0.82, chy = Math.sin(a3) * r * 0.82;
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.arc(chx, chy, Math.max(1.2, r * 0.08), 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(chx, chy, Math.max(1.4, r * 0.085), 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#140824'; ctx.lineWidth = 1; ctx.stroke();
+
+        // High-voltage discharge arc to next claw
+        if (fPulse > 0.65){
+          var nextA3 = (k+1)/3*TAU + t*1.1;
+          var nchx = Math.cos(nextA3) * r * 0.82, nchy = Math.sin(nextA3) * r * 0.82;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.lineWidth = 1.0;
+          ctx.beginPath();
+          ctx.moveTo(chx, chy);
+          ctx.lineTo((chx + nchx)*0.5 + Math.sin(t * 30 + k) * 3, (chy + nchy)*0.5 + Math.cos(t * 30 + k) * 3);
+          ctx.lineTo(nchx, nchy);
+          ctx.stroke();
+        }
       }
 
       // Layer 3: Internal faceted crystal nucleus
@@ -10458,16 +10710,24 @@ function drawEnemyModel(e){
         if (gi === 0) ctx.moveTo(gx, gy); else ctx.lineTo(gx, gy);
       }
       ctx.closePath();
-      ctx.fillStyle = 'rgba(255, 77, 109, 0.35)'; ctx.fill();
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 77, 109, 0.38)'; ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2; ctx.stroke();
 
-      // Layer 4: Central pulsating fission core
-      ctx.beginPath(); ctx.arc(0, 0, r*0.14, 0, TAU); ctx.fillStyle = col; ctx.fill();
-      ctx.beginPath(); ctx.arc(0, 0, r*0.06, 0, TAU); ctx.fillStyle = '#ffffff'; ctx.fill();
+      // Layer 4: Central pulsating fission core (breathing cadence)
+      ctx.beginPath(); ctx.arc(0, 0, r*(0.14 + fPulse * 0.04), 0, TAU); ctx.fillStyle = col; ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, r*0.07, 0, TAU); ctx.fillStyle = '#ffffff'; ctx.fill();
       break;
 
     case 'shard':
       // Supersonic crystal penetrator dart
+      var shPulse = 0.5 + 0.5 * Math.sin(t * 16 + e.x);
+
+      // Layer 1: Underglow atmospheric friction pass
+      ctx.save();
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = 'rgba(125, 255, 207, 0.4)';
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       ctx.moveTo(r * 1.25, 0);
       ctx.lineTo(-r * 0.45, -r * 0.65);
@@ -10476,37 +10736,625 @@ function drawEnemyModel(e){
       ctx.lineTo(-r * 0.85, r * 0.35);
       ctx.lineTo(-r * 0.45, r * 0.65);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(12, 8, 24, 0.9)';
+      ctx.stroke();
+      ctx.restore();
+
+      // Layer 2: Main Faceted Obsidian Crystal Dart
+      ctx.beginPath();
+      ctx.moveTo(r * 1.25, 0);
+      ctx.lineTo(-r * 0.45, -r * 0.65);
+      ctx.lineTo(-r * 0.85, -r * 0.35);
+      ctx.lineTo(-r * 0.55, 0);
+      ctx.lineTo(-r * 0.85, r * 0.35);
+      ctx.lineTo(-r * 0.45, r * 0.65);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(12, 8, 24, 0.92)';
       ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.0;
       ctx.stroke();
 
-      // Prismatic facet split
+      // Hard-light specular cutting edge bevels
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(r * 1.22, 0); ctx.lineTo(-r * 0.43, -r * 0.63);
+      ctx.stroke();
+
+      // Layer 3: Prismatic facet split
       ctx.beginPath();
       ctx.moveTo(r * 0.90, 0);
       ctx.lineTo(-r * 0.45, -r * 0.35);
       ctx.lineTo(-r * 0.30, 0);
       ctx.lineTo(-r * 0.45, r * 0.35);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(125, 255, 207, 0.25)';
+      ctx.fillStyle = 'rgba(125, 255, 207, 0.28)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
       ctx.lineWidth = 1.0;
       ctx.stroke();
 
-      // Superconductor spine
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4;
+      // Superconductor spine with traveling pulse
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(-r * 0.35, 0); ctx.lineTo(r * 0.85, 0); ctx.stroke();
 
       // Micro-exhaust plasma pin-flame
       ctx.fillStyle = col;
       ctx.beginPath();
       ctx.moveTo(-r * 0.55, -r * 0.16);
-      ctx.lineTo(-r * 0.95 - Math.random() * r * 0.3, 0);
+      ctx.lineTo(-r * 0.95 - Math.sin(t * 30) * r * 0.25, 0);
       ctx.lineTo(-r * 0.55, r * 0.16);
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-r * 0.55, -1, 2, 2);
+      ctx.fillRect(-r * 0.55, -1, 2.5, 2.5);
+      break;
+
+    case 'carapace':
+      // Brood Carapace: Ancient heavily-plated trilobite / horseshoe organism
+      var carBreath = Math.sin(t * 5.0 + e.x) * 0.08;
+
+      // 1. Protective Living Bio-Shield Forcefield
+      ctx.save();
+      ctx.setLineDash([8, 6]);
+      ctx.lineDashOffset = -t * 16;
+      ctx.strokeStyle = 'rgba(53, 240, 255, 0.45)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, 75, 0, TAU);
+      ctx.stroke();
+
+      // Shield orbital power nodes
+      for (var sni = 0; sni < 6; sni++){
+        var sna = sni/6*TAU + t * 0.8;
+        var snx = Math.cos(sna) * 75, sny = Math.sin(sna) * 75;
+        ctx.fillStyle = '#35f0ff';
+        ctx.beginPath(); ctx.arc(snx, sny, 2.2, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+
+      // 2. Articulated Scuttling Legs (3 pairs with coxa, femur, tibia, recurved claw)
+      for (var lgi = -1; lgi <= 1; lgi += 2){
+        for (var lgs = 0; lgs < 3; lgs++){
+          var lgBaseX = -r * 0.35 + lgs * (r * 0.36);
+          var lgBaseY = lgi * r * 0.40;
+          var legPhase = t * 14 + lgs * 1.2 + lgi * 0.8;
+          var kneeX = lgBaseX - r * 0.12 + Math.sin(legPhase) * (r * 0.15);
+          var kneeY = lgi * (r * 0.70 + Math.cos(legPhase) * (r * 0.12));
+          var footX = kneeX - r * 0.18;
+          var footY = lgi * (r * 0.95 + Math.sin(legPhase) * (r * 0.18));
+
+          // Coxa socket
+          ctx.fillStyle = '#102e38';
+          ctx.beginPath(); ctx.arc(lgBaseX, lgBaseY, 3, 0, TAU); ctx.fill();
+
+          // Femur
+          ctx.strokeStyle = '#1b5a68'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(lgBaseX, lgBaseY); ctx.lineTo(kneeX, kneeY); ctx.stroke();
+
+          // Tibia & Recurved Claw
+          ctx.strokeStyle = '#35f0ff'; ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(kneeX, kneeY);
+          ctx.quadraticCurveTo(kneeX + r * 0.05, footY, footX, footY);
+          ctx.stroke();
+
+          // Claw tip
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(footX - 1, footY - 1, 2, 2);
+        }
+      }
+
+      // 3. Sinuous Articulated Posterior Telson Spine
+      ctx.strokeStyle = '#227082';
+      ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.70, 0);
+      var telsonX = -r * 1.35 + Math.sin(t * 8) * (r * 0.18);
+      var telsonY = Math.cos(t * 8) * (r * 0.22);
+      ctx.lineTo(-r * 1.0, telsonY * 0.5);
+      ctx.lineTo(telsonX, telsonY);
+      ctx.stroke();
+      // Barbed venomous stinger tip
+      ctx.fillStyle = '#35f0ff';
+      ctx.beginPath(); ctx.arc(telsonX, telsonY, 3.5, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(telsonX - 1, telsonY - 1, 2, 2);
+
+      // 4. Overlapping Carapace Armor Plates (3 Tiered Anatomical Segments)
+      var cSegments = [
+        { x: -r * 0.45, w: r * 0.60 * (1 + carBreath), h: r * 0.70 * (1 + carBreath), col: '#081720' },
+        { x: -r * 0.12, w: r * 0.72 * (1 + carBreath), h: r * 0.90 * (1 + carBreath), col: '#0b202c' },
+        { x: r * 0.28,  w: r * 0.78 * (1 + carBreath), h: r * 0.82 * (1 + carBreath), col: '#102f3e' }
+      ];
+
+      for (var csi = 0; csi < cSegments.length; csi++){
+        var cseg = cSegments[csi];
+        ctx.beginPath();
+        ctx.ellipse(cseg.x, 0, cseg.w * 0.5, cseg.h * 0.5, 0, 0, TAU);
+        ctx.fillStyle = cseg.col;
+        ctx.fill();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+
+        // Hard-light specular chitin ridge bevel along plate rim
+        ctx.strokeStyle = (csi === 2) ? '#ffffff' : 'rgba(53, 240, 255, 0.65)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(cseg.x, 0, cseg.h * 0.46, -Math.PI * 0.45, Math.PI * 0.45, false);
+        ctx.stroke();
+      }
+
+      // Longitudinal axial spine seam
+      ctx.strokeStyle = 'rgba(53, 240, 255, 0.5)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.7, 0); ctx.lineTo(r * 0.65, 0);
+      ctx.stroke();
+
+      // 5. Ventral Glowing Cyan Respiratory Gills & Spiracles
+      ctx.fillStyle = '#35f0ff';
+      for (var gli = -1; gli <= 1; gli += 2){
+        for (var gls = 0; gls < 3; gls++){
+          var glx = -r * 0.25 + gls * (r * 0.25);
+          var gly = gli * (r * 0.28 + carBreath * r * 0.2);
+          ctx.beginPath();
+          ctx.arc(glx, gly, 2.5, 0, TAU);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(glx - 0.8, gly - 0.8, 1.6, 1.6);
+          ctx.fillStyle = '#35f0ff';
+        }
+      }
+      break;
+
+    case 'mantis':
+      // Phase-Stalker Mantis: Sinuous bio-hunter with razor scythes & vibrating wings
+      if (e.cloaked){
+        ctx.globalAlpha = 0.30 + Math.sin(t * 12 + e.x) * 0.15;
+      }
+      var mPulse = 0.5 + 0.5 * Math.sin(t * 8);
+
+      // 1. Quad Fluttering Translucent Insectoid Wings (veined aerodynamic membranes)
+      var wingSpread = Math.sin(t * 36) * 0.48;
+      ctx.save();
+      for (var wi2 = -1; wi2 <= 1; wi2 += 2){
+        ctx.save();
+        ctx.translate(-r * 0.2, wi2 * r * 0.25);
+        ctx.rotate(wi2 * (0.8 + wingSpread));
+
+        // Translucent wing membrane
+        ctx.fillStyle = 'rgba(191, 85, 236, 0.32)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(r * 0.35, 0, r * 0.70, r * 0.22, 0, 0, TAU);
+        ctx.fill(); ctx.stroke();
+
+        // Chitinous structural wing veins (costa & radial veins)
+        ctx.strokeStyle = 'rgba(224, 170, 255, 0.55)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(r * 0.95, 0);
+        ctx.moveTo(r * 0.2, 0); ctx.lineTo(r * 0.6, r * 0.12);
+        ctx.moveTo(r * 0.4, 0); ctx.lineTo(r * 0.8, -r * 0.10);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // 2. Articulated Segmented Abdomen with Chitinous Tergites (T1-T5)
+      for (var segI = 0; segI < 5; segI++){
+        var segX = -r * 0.22 - segI * (r * 0.18);
+        var segW = (r * 0.24) * (1 - segI * 0.14);
+        var segH = (r * 0.34) * (1 - segI * 0.16) * (1 + mPulse * 0.08);
+        var segWiggle = Math.sin(t * 10 - segI * 0.8) * (r * 0.05);
+
+        ctx.beginPath();
+        ctx.ellipse(segX, segWiggle, segW, segH, 0, 0, TAU);
+        ctx.fillStyle = (segI % 2 === 0) ? '#1f0834' : '#140424';
+        ctx.fill();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Tergite specular edge highlight
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.arc(segX, segWiggle, segH * 0.88, -Math.PI * 0.4, Math.PI * 0.4, false);
+        ctx.stroke();
+      }
+      // Posterior sting ovipositor
+      ctx.fillStyle = '#ff0055';
+      ctx.beginPath();
+      ctx.moveTo(-r * 1.05, 0); ctx.lineTo(-r * 1.30, 0); ctx.lineTo(-r * 1.10, 2);
+      ctx.closePath(); ctx.fill();
+
+      // 3. Thorax & Pronotum Collar
+      ctx.beginPath();
+      ctx.ellipse(r * 0.05, 0, r * 0.32, r * 0.26, 0, 0, TAU);
+      ctx.fillStyle = '#260a3e';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      // 4. Triangular Cranial Plate with Twitching Antennae
+      ctx.beginPath();
+      ctx.moveTo(r * 0.88, 0);
+      ctx.lineTo(r * 0.20, -r * 0.44);
+      ctx.lineTo(r * 0.12, 0);
+      ctx.lineTo(r * 0.20, r * 0.44);
+      ctx.closePath();
+      ctx.fillStyle = '#320b52';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Cranial specular crown bevel
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.85, 0); ctx.lineTo(r * 0.25, -r * 0.38);
+      ctx.stroke();
+
+      // Twitching sensory antennae
+      for (var antI = -1; antI <= 1; antI += 2){
+        var antBend = Math.sin(t * 16 + antI) * (r * 0.12);
+        ctx.strokeStyle = '#e0aaff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.80, antI * r * 0.15);
+        ctx.quadraticCurveTo(r * 1.15, antI * r * 0.35 + antBend, r * 1.35, antI * r * 0.55 + antBend);
+        ctx.stroke();
+      }
+
+      // Multi-Ocular Compound Eye Clusters (3 glowing violet facets with specular glints)
+      for (var meI = -1; meI <= 1; meI += 2){
+        var eyeY = meI * r * 0.26;
+        ctx.fillStyle = '#e0aaff';
+        ctx.beginPath(); ctx.arc(r * 0.48, eyeY, 3.2, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(r * 0.50, eyeY - meI * 0.8, 1.4, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#bf55ec';
+        ctx.beginPath(); ctx.arc(r * 0.38, eyeY + meI * 1.8, 2.0, 0, TAU); ctx.fill();
+      }
+
+      // 5. Articulated Raptorial Scythe Arms (Muscular coxa, barbed femur, curved sickle tibia)
+      for (var msi = -1; msi <= 1; msi += 2){
+        var coxaX = r * 0.22, coxaY = msi * r * 0.35;
+        var elbowX = r * 0.70, elbowY = msi * r * 0.72;
+        var scytheTipX = r * 1.05, scytheTipY = msi * r * 0.18;
+
+        // Coxa muscular ball joint
+        ctx.fillStyle = '#1b062a';
+        ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(coxaX, coxaY, 4.0, 0, TAU); ctx.fill(); ctx.stroke();
+
+        // Femur with serrated teeth
+        ctx.strokeStyle = '#bf55ec'; ctx.lineWidth = 3.6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(coxaX, coxaY); ctx.lineTo(elbowX, elbowY); ctx.stroke();
+
+        // Elbow joint node
+        ctx.fillStyle = '#ffe066';
+        ctx.beginPath(); ctx.arc(elbowX, elbowY, 3.5, 0, TAU); ctx.fill();
+
+        // Curved sickle blade with razor cutting edge bevel
+        ctx.beginPath();
+        ctx.moveTo(elbowX, elbowY);
+        ctx.quadraticCurveTo(r * 0.95, msi * r * 0.65, scytheTipX, scytheTipY);
+        ctx.lineTo(r * 0.88, msi * r * 0.32);
+        ctx.quadraticCurveTo(r * 0.78, msi * r * 0.52, elbowX, elbowY);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 0, 85, 0.85)'; ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 2.0; ctx.stroke();
+
+        // Specular cutting edge
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(elbowX + r * 0.1, elbowY - msi * r * 0.05);
+        ctx.quadraticCurveTo(r * 0.94, msi * r * 0.62, scytheTipX, scytheTipY);
+        ctx.stroke();
+      }
+      break;
+
+    case 'sporepod':
+      // Bile Spore Pod: Floating organic jellyfish medusa hazard spawner
+      var podHeave = Math.sin(t * 4.5 + e.x) * 0.16;
+
+      // 1. Trailing Stinging Bioluminescent Oral Arms & Tendrils (8 tentacles)
+      var tCount = 8;
+      for (var spti = 0; spti < tCount; spti++){
+        var tYFrac = (spti / (tCount - 1)) - 0.5;
+        var tYOffset = tYFrac * r * 0.9;
+        var tPhase2 = t * 7.5 + spti * 0.95;
+
+        ctx.strokeStyle = (spti % 2 === 0) ? '#ff9f1c' : '#a7ff00';
+        ctx.lineWidth = (spti % 2 === 0) ? 2.0 : 1.4;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.25, tYOffset);
+
+        var tMidX = -r * 0.75 + Math.sin(tPhase2) * (r * 0.25);
+        var tMidY = tYOffset + Math.cos(tPhase2) * (r * 0.20);
+        var tEnd2X = -r * 1.35 + Math.sin(tPhase2 + 1.2) * (r * 0.35);
+        var tEnd2Y = tYOffset + Math.cos(tPhase2 + 1.2) * (r * 0.30);
+        ctx.quadraticCurveTo(tMidX, tMidY, tEnd2X, tEnd2Y);
+        ctx.stroke();
+
+        // Stinging nematocyst nodes along tentacle
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(tMidX, tMidY, 1.8, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#a7ff00';
+        ctx.beginPath(); ctx.arc(tEnd2X, tEnd2Y, 2.5, 0, TAU); ctx.fill();
+      }
+
+      // 2. Outer Pulsating Medusa Bell Dome with Scalloped Margin
+      ctx.beginPath();
+      ctx.arc(r * 0.1, 0, r * (0.85 + podHeave), -Math.PI * 0.5, Math.PI * 0.5, false);
+      ctx.lineTo(-r * 0.25, r * (0.65 + podHeave));
+      ctx.quadraticCurveTo(-r * 0.10, 0, -r * 0.25, -r * (0.65 + podHeave));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 159, 28, 0.38)';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+
+      // Specular sheen along umbrella rim
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(r * 0.1, 0, r * (0.82 + podHeave), -Math.PI * 0.35, Math.PI * 0.35, false);
+      ctx.stroke();
+
+      // Scalloped marginal rhopalia sensory bulbs along rim
+      for (var rhi = -3; rhi <= 3; rhi++){
+        var rha = (rhi / 4) * Math.PI * 0.45;
+        var rhx = r * 0.1 + Math.cos(rha) * r * (0.85 + podHeave);
+        var rhy = Math.sin(rha) * r * (0.85 + podHeave);
+        ctx.fillStyle = '#a7ff00';
+        ctx.beginPath(); ctx.arc(rhx, rhy, 2.2, 0, TAU); ctx.fill();
+      }
+
+      // 3. Central Glowing Bio-Acid Gland Sac & Digestive Vesicles
+      var glandPulse = Math.sin(t * 8.5) * 0.22;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.42 * (1 + glandPulse), 0, TAU);
+      ctx.fillStyle = '#a7ff00';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Internal circulating toxic vesicles
+      for (var vi2 = 0; vi2 < 3; vi2++){
+        var va2 = t * 4.5 + vi2 * (TAU / 3);
+        var vx2 = Math.cos(va2) * r * 0.22;
+        var vy2 = Math.sin(va2) * r * 0.22;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(vx2, vy2, 1.8, 0, TAU); ctx.fill();
+      }
+
+      // Core white-hot digestion seed
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.16, 0, TAU);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      break;
+
+    case 'colossus':
+      // Hive Colossus: Super-heavy horned bio-tank juggernaut
+      var hbPulse = Math.pow(Math.sin(t * 8.0), 4) * 0.24;
+
+      // 1. 4 Colossal Articulated Walking Limbs (Coxa, Femur, Tibia, Ground-Cleat Hoof)
+      for (var cli = -1; cli <= 1; cli += 2){
+        for (var cls = -1; cls <= 1; cls += 2){
+          var legPhaseCol = t * 11 + cls * 2.0 + cli;
+          var limbCoxaX = cls * r * 0.45;
+          var limbCoxaY = cli * r * 0.50;
+          var limbKneeX = limbCoxaX + cls * r * 0.28 + Math.sin(legPhaseCol) * 3;
+          var limbKneeY = cli * (r * 0.78 + Math.sin(legPhaseCol) * 4);
+          var limbFootX = limbKneeX + cls * r * 0.22;
+          var limbFootY = cli * (r * 0.98 + Math.cos(legPhaseCol) * 4);
+
+          // Muscular coxa
+          ctx.fillStyle = '#2d0610';
+          ctx.beginPath(); ctx.arc(limbCoxaX, limbCoxaY, 5.0, 0, TAU); ctx.fill();
+
+          // Armored femur
+          ctx.strokeStyle = '#4a0e1c'; ctx.lineWidth = 5.5; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(limbCoxaX, limbCoxaY); ctx.lineTo(limbKneeX, limbKneeY); ctx.stroke();
+
+          // Tibia & ground-cleat hoof
+          ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 3.5;
+          ctx.beginPath(); ctx.moveTo(limbKneeX, limbKneeY); ctx.lineTo(limbFootX, limbFootY); ctx.stroke();
+
+          // Articulated ground cleat plate
+          ctx.fillStyle = '#ffe066';
+          ctx.fillRect(limbFootX - 3, limbFootY - 2, 6, 4);
+        }
+      }
+
+      // 2. Segmented Juggernaut Torso Carapace (Multi-tiered overlapping scutes)
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.78, r * 0.68, 0, 0, TAU);
+      ctx.fillStyle = '#1e050c';
+      ctx.fill();
+      ctx.strokeStyle = '#5a1222';
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+
+      // Dorsal bone ridges
+      for (var dri = -2; dri <= 1; dri++){
+        var drx = dri * r * 0.28;
+        ctx.strokeStyle = 'rgba(255, 0, 85, 0.45)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(drx, 0, r * 0.52, -Math.PI * 0.4, Math.PI * 0.4, false);
+        ctx.stroke();
+      }
+
+      // 3. Frontal Heavy Horned Cranial Bone Plate (Deflects 70% damage)
+      ctx.beginPath();
+      ctx.moveTo(r * 0.98, 0);
+      ctx.lineTo(r * 0.48, -r * 0.88);
+      ctx.lineTo(r * 0.12, -r * 0.68);
+      ctx.lineTo(r * 0.28, 0);
+      ctx.lineTo(r * 0.12, r * 0.68);
+      ctx.lineTo(r * 0.48, r * 0.88);
+      ctx.closePath();
+      ctx.fillStyle = '#3a0814';
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 3.8;
+      ctx.stroke();
+
+      // Specular hard-light bone bevel on cranial armor
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.96, 0); ctx.lineTo(r * 0.48, -r * 0.85);
+      ctx.moveTo(r * 0.96, 0); ctx.lineTo(r * 0.48, r * 0.85);
+      ctx.stroke();
+
+      // Colossal Forward Ramming Horns with Annular Growth Ridges
+      for (var hni = -1; hni <= 1; hni += 2){
+        ctx.strokeStyle = '#ffe066';
+        ctx.lineWidth = 3.6;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.45, hni * r * 0.75);
+        ctx.quadraticCurveTo(r * 0.88, hni * r * 0.98, r * 1.20, hni * r * 0.62);
+        ctx.stroke();
+
+        // Specular horn ridge
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.55, hni * r * 0.78);
+        ctx.quadraticCurveTo(r * 0.85, hni * r * 0.92, r * 1.18, hni * r * 0.62);
+        ctx.stroke();
+
+        // Annular growth rings
+        ctx.fillStyle = '#ff7b00';
+        for (var ari = 1; ari <= 3; ari++){
+          var arx = r * (0.55 + ari * 0.16);
+          var ary = hni * r * (0.76 + ari * 0.04);
+          ctx.fillRect(arx - 1, ary - 2, 2, 4);
+        }
+      }
+
+      // Crushing chelicerae fangs guarding mouth
+      ctx.fillStyle = '#ffffff';
+      for (var cfi = -1; cfi <= 1; cfi += 2){
+        ctx.beginPath();
+        ctx.moveTo(r * 0.65, cfi * r * 0.25);
+        ctx.lineTo(r * 0.92, cfi * r * 0.15);
+        ctx.lineTo(r * 0.72, cfi * r * 0.05);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 4. Exposed Rear Dorsal Heart / Vulnerable Core (3.0x Crit Spot!)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(-r * 0.48, 0, r * 0.34 * (1 + hbPulse), 0, TAU);
+      ctx.fillStyle = '#ff0055';
+      ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Heart chambers & pulsating vent capillaries
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(-r * 0.48, 0, r * 0.20 * (1 + hbPulse), 0, TAU);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(-r * 0.48, 0, r * 0.10, 0, TAU);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.restore();
+      break;
+
+    case 'leech':
+      // Parasitic Leech Drone: Sinuous multi-segmented eel horror
+      var leechWiggle = Math.sin(t * 18);
+      ctx.beginPath();
+      ctx.moveTo(r * 0.9, 0);
+      for (var lsi = 1; lsi <= 6; lsi++){
+        var lx = r * 0.9 - lsi * (r * 0.32);
+        var ly = Math.sin(t * 18 - lsi * 0.85) * (r * 0.48);
+        ctx.lineTo(lx, ly);
+      }
+      ctx.strokeStyle = col;
+      ctx.lineWidth = Math.max(2.5, r * 0.48);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Segmented Chitinous Annuli Highlights
+      for (var lsi2 = 1; lsi2 <= 5; lsi2++){
+        var lx2 = r * 0.9 - lsi2 * (r * 0.32);
+        var ly2 = Math.sin(t * 18 - lsi2 * 0.85) * (r * 0.48);
+        ctx.fillStyle = '#ff8fd8';
+        ctx.fillRect(lx2 - 1.5, ly2 - 2, 3, 4);
+      }
+
+      // Circular Toothy Maw with Concentric Needle Teeth
+      ctx.beginPath();
+      ctx.arc(r * 0.82, 0, r * 0.46, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(r * 0.82, 0, r * 0.28, 0, TAU);
+      ctx.fillStyle = '#2b0008';
+      ctx.fill();
+      // Razor teeth ring
+      ctx.fillStyle = '#ffffff';
+      for (var lti = 0; lti < 6; lti++){
+        var lta = lti * (TAU / 6) + t * 4;
+        ctx.fillRect(r * 0.82 + Math.cos(lta) * r * 0.22 - 1, Math.sin(lta) * r * 0.22 - 1, 2, 2);
+      }
+      break;
+
+    case 'spore':
+      // Living Acid Spore: Floating pulsating hazard bulb
+      var spPulse = Math.sin(t * 10 + e.x) * 0.16;
+      ctx.save();
+      ctx.shadowColor = '#a7ff00';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * (0.85 + spPulse), 0, TAU);
+      ctx.fillStyle = 'rgba(255, 159, 28, 0.48)';
+      ctx.fill();
+      ctx.strokeStyle = '#a7ff00';
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+      ctx.restore();
+
+      // Specular surface glaze
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.75, -Math.PI * 0.3, Math.PI * 0.3, false);
+      ctx.stroke();
+
+      // Core toxic droplet with bubbling vesicles
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.44, 0, TAU);
+      ctx.fillStyle = '#a7ff00';
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(-r * 0.12, -r * 0.12, r * 0.14, 0, TAU); ctx.fill();
+
+      // 4 twitching articulated flagella
+      ctx.strokeStyle = 'rgba(167, 255, 0, 0.75)';
+      ctx.lineWidth = 1.4;
+      for (var fli = 0; fli < 4; fli++){
+        var fla = Math.PI - 0.6 + fli * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(fla) * r * 0.8, Math.sin(fla) * r * 0.8);
+        ctx.lineTo(Math.cos(fla) * r * 1.6 + Math.sin(t * 14 + fli) * 4, Math.sin(fla) * r * 1.6);
+        ctx.stroke();
+      }
       break;
 
     case 'minion_geom':
@@ -10527,7 +11375,9 @@ function drawEnemyModel(e){
       ctx.closePath();
       ctx.fill();
 
-      // Delta-Wing Polyhedral Hull
+      // Delta-Wing Polyhedral Hull with underglow pass
+      ctx.save();
+      ctx.shadowColor = col; ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.moveTo(r * 1.25, 0);
       ctx.lineTo(-r * 0.65, -r * 0.95);
@@ -10537,7 +11387,14 @@ function drawEnemyModel(e){
       ctx.fillStyle = '#071618';
       ctx.fill();
       ctx.strokeStyle = col;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.restore();
+
+      // Specular hull ridge
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(r * 1.2, 0); ctx.lineTo(-r * 0.6, -r * 0.9);
       ctx.stroke();
 
       // Inner Prismatic Hull Inset
@@ -10548,14 +11405,14 @@ function drawEnemyModel(e){
       ctx.closePath();
       ctx.fillStyle = 'rgba(0, 245, 212, 0.25)';
       ctx.fill();
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.lineWidth = 1;
       ctx.stroke();
 
       // Forward twin micro-blasters
       ctx.fillStyle = '#00f5d4';
-      ctx.fillRect(r * 0.45, -r * 0.32, r * 0.35, 2);
-      ctx.fillRect(r * 0.45, r * 0.30, r * 0.35, 2);
+      ctx.fillRect(r * 0.45, -r * 0.32, r * 0.35, 2.5);
+      ctx.fillRect(r * 0.45, r * 0.30, r * 0.35, 2.5);
 
       // Glowing Vertex Core Lens
       ctx.beginPath();
@@ -10606,11 +11463,11 @@ function drawEnemyModel(e){
       ctx.fillStyle = 'rgba(25, 12, 38, 0.75)';
       ctx.fill();
       ctx.strokeStyle = col;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.stroke();
 
       // Layer 3: Inner Quantum Interference Scanlines
-      ctx.strokeStyle = 'rgba(191, 85, 236, 0.45)';
+      ctx.strokeStyle = 'rgba(191, 85, 236, 0.5)';
       ctx.lineWidth = 1;
       for (var sli = -2; sli <= 2; sli++){
         var slx = sli * r * 0.22;
@@ -10626,7 +11483,7 @@ function drawEnemyModel(e){
       ctx.fillStyle = 'rgba(191, 85, 236, 0.35)';
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.4;
       ctx.stroke();
 
       ctx.beginPath();
@@ -10636,295 +11493,28 @@ function drawEnemyModel(e){
       ctx.restore();
       break;
 
-    case 'carapace':
-      // Brood Carapace: Ancient heavily-plated trilobite / horseshoe organism
-      // Protective living aura ring
-      ctx.save();
-      ctx.setLineDash([6, 6]);
-      ctx.lineDashOffset = -t * 14;
-      ctx.strokeStyle = 'rgba(53, 240, 255, 0.42)';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.arc(0, 0, 75, 0, TAU);
-      ctx.stroke();
-      ctx.restore();
-
-      // Ventral twitching legs (3 pairs)
-      ctx.strokeStyle = '#1a535c';
-      ctx.lineWidth = 2;
-      for (var lgi = -1; lgi <= 1; lgi += 2){
-        for (var lgs = 0; lgs < 3; lgs++){
-          var lgx = -r * 0.3 + lgs * (r * 0.35);
-          var legKick = Math.sin(t * 14 + lgs + lgi) * (r * 0.2);
-          ctx.beginPath();
-          ctx.moveTo(lgx, lgi * r * 0.45);
-          ctx.lineTo(lgx - r * 0.15, lgi * (r * 0.85 + legKick));
-          ctx.stroke();
-        }
-      }
-
-      // Tiered obsidian shell plates (3 arched segments)
-      var cSegments = [
-        { x: -r * 0.45, w: r * 0.55, h: r * 0.65 },
-        { x: -r * 0.15, w: r * 0.65, h: r * 0.85 },
-        { x: r * 0.25,  w: r * 0.70, h: r * 0.75 }
-      ];
-      for (var csi = 0; csi < cSegments.length; csi++){
-        var cseg = cSegments[csi];
-        ctx.beginPath();
-        ctx.ellipse(cseg.x, 0, cseg.w * 0.5, cseg.h * 0.5, 0, 0, TAU);
-        ctx.fillStyle = csi === 2 ? '#0f2b38' : '#081720';
-        ctx.fill();
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-
-      // Ventral glowing cyan respiratory gills
-      ctx.fillStyle = '#35f0ff';
-      for (var gli = -1; gli <= 1; gli += 2){
-        ctx.beginPath();
-        ctx.arc(r * 0.2, gli * r * 0.28, 3, 0, TAU);
-        ctx.fill();
-      }
-      break;
-
-    case 'mantis':
-      // Phase-Stalker Mantis: Sinuous bio-hunter with razor scythes & vibrating wings
-      if (e.cloaked){
-        ctx.globalAlpha = 0.30 + Math.sin(t * 12 + e.x) * 0.15;
-      }
-
-      // Quad fluttering translucent insectoid wings
-      var wingSpread = Math.sin(t * 36) * 0.45;
-      ctx.save();
-      for (var wi2 = -1; wi2 <= 1; wi2 += 2){
-        ctx.save();
-        ctx.translate(-r * 0.2, wi2 * r * 0.25);
-        ctx.rotate(wi2 * (0.8 + wingSpread));
-        ctx.fillStyle = 'rgba(191, 85, 236, 0.35)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.ellipse(r * 0.3, 0, r * 0.65, r * 0.22, 0, 0, TAU);
-        ctx.fill(); ctx.stroke();
-        ctx.restore();
-      }
-      ctx.restore();
-
-      // Slender chitinous thorax & abdomen
-      ctx.beginPath();
-      ctx.ellipse(-r * 0.35, 0, r * 0.55, r * 0.28, 0, 0, TAU);
-      ctx.fillStyle = '#1c0a2e';
-      ctx.fill();
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-
-      // Triangular cranial plate
-      ctx.beginPath();
-      ctx.moveTo(r * 0.85, 0);
-      ctx.lineTo(r * 0.15, -r * 0.45);
-      ctx.lineTo(r * 0.15, r * 0.45);
-      ctx.closePath();
-      ctx.fillStyle = '#2d0f48';
-      ctx.fill();
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Compound ocular nodes (glowing violet)
-      ctx.fillStyle = '#e0aaff';
-      ctx.fillRect(r * 0.4, -r * 0.35, 3, 3);
-      ctx.fillRect(r * 0.4, r * 0.30, 3, 3);
-
-      // Forward raptorial scythe arms
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 2.2;
-      ctx.lineCap = 'round';
-      for (var msi = -1; msi <= 1; msi += 2){
-        ctx.beginPath();
-        ctx.moveTo(r * 0.2, msi * r * 0.35);
-        ctx.lineTo(r * 0.65, msi * r * 0.65);
-        ctx.lineTo(r * 0.95, msi * r * 0.2);
-        ctx.stroke();
-      }
-      break;
-
-    case 'sporepod':
-      // Bile Spore Pod: Floating organic jellyfish medusa hazard spawner
-      var podHeave = Math.sin(t * 4.5 + e.x) * 0.14;
-
-      // Trailing stinging bioluminescent tendrils (5 tentacles)
-      ctx.strokeStyle = '#ff9f1c';
-      ctx.lineWidth = 1.5;
-      for (var spti = 0; spti < 5; spti++){
-        var tYOffset = -r * 0.5 + (spti / 4) * r;
-        var tPhase2 = t * 7 + spti * 1.2;
-        ctx.beginPath();
-        ctx.moveTo(-r * 0.3, tYOffset);
-        var tEnd1X = -r * 0.7 + Math.sin(tPhase2) * (r * 0.25);
-        var tEnd1Y = tYOffset + Math.cos(tPhase2) * (r * 0.15);
-        var tEnd2X = -r * 1.25 + Math.sin(tPhase2 + 1) * (r * 0.35);
-        var tEnd2Y = tYOffset + Math.cos(tPhase2 + 1) * (r * 0.25);
-        ctx.quadraticCurveTo(tEnd1X, tEnd1Y, tEnd2X, tEnd2Y);
-        ctx.stroke();
-      }
-
-      // Translucent pulsing bell dome
-      ctx.beginPath();
-      ctx.arc(r * 0.1, 0, r * (0.85 + podHeave), -Math.PI * 0.5, Math.PI * 0.5, false);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(255, 159, 28, 0.35)';
-      ctx.fill();
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 2.2;
-      ctx.stroke();
-
-      // Central glowing bio-acid gland sac
-      var glandPulse = Math.sin(t * 8) * 0.2;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.38 * (1 + glandPulse), 0, TAU);
-      ctx.fillStyle = '#a7ff00';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.18, 0, TAU);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      break;
-
-    case 'colossus':
-      // Hive Colossus: Super-heavy horned bio-tank juggernaut
-      // 4 heavy muscular limbs
-      ctx.strokeStyle = '#4a0e1c';
-      ctx.lineWidth = 5;
-      ctx.lineCap = 'round';
-      for (var cli = -1; cli <= 1; cli += 2){
-        for (var cls = -1; cls <= 1; cls += 2){
-          var limbLegX = cls * r * 0.45;
-          var limbLegY = cli * r * 0.55;
-          var limbFootX = limbLegX + cls * r * 0.35;
-          var limbFootY = cli * (r * 0.85 + Math.sin(t * 12 + cls) * 4);
-          ctx.beginPath();
-          ctx.moveTo(limbLegX, limbLegY);
-          ctx.lineTo(limbFootX, limbFootY);
-          ctx.stroke();
-        }
-      }
-
-      // Heavy armored torso
-      ctx.beginPath();
-      ctx.ellipse(0, 0, r * 0.75, r * 0.65, 0, 0, TAU);
-      ctx.fillStyle = '#1e050c';
-      ctx.fill();
-      ctx.strokeStyle = '#5a1222';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      // Frontal heavy horned cranial bone plate (deflects 70% damage)
-      ctx.beginPath();
-      ctx.moveTo(r * 0.95, 0);
-      ctx.lineTo(r * 0.45, -r * 0.85);
-      ctx.lineTo(r * 0.1, -r * 0.65);
-      ctx.lineTo(r * 0.25, 0);
-      ctx.lineTo(r * 0.1, r * 0.65);
-      ctx.lineTo(r * 0.45, r * 0.85);
-      ctx.closePath();
-      ctx.fillStyle = '#3a0814';
-      ctx.fill();
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 3.5;
-      ctx.stroke();
-
-      // Pair of forward curved horns
-      ctx.strokeStyle = '#ffe066';
-      ctx.lineWidth = 3;
-      for (var hni = -1; hni <= 1; hni += 2){
-        ctx.beginPath();
-        ctx.moveTo(r * 0.45, hni * r * 0.75);
-        ctx.quadraticCurveTo(r * 0.85, hni * r * 0.95, r * 1.15, hni * r * 0.60);
-        ctx.stroke();
-      }
-
-      // Exposed rear dorsal heart / vulnerable core (3.0x crit spot!)
-      var heartPulse = Math.sin(t * 10) * 0.18;
-      ctx.beginPath();
-      ctx.arc(-r * 0.48, 0, r * 0.32 * (1 + heartPulse), 0, TAU);
-      ctx.fillStyle = '#ff0055';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(-r * 0.48, 0, r * 0.15, 0, TAU);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      break;
-
-    case 'leech':
-      // Parasitic Leech Drone: Sinuous squirming eel horror
-      ctx.beginPath();
-      ctx.moveTo(r * 0.9, 0);
-      for (var lsi = 1; lsi <= 5; lsi++){
-        var lx = r * 0.9 - lsi * (r * 0.36);
-        var ly = Math.sin(t * 18 - lsi * 0.9) * (r * 0.45);
-        ctx.lineTo(lx, ly);
-      }
-      ctx.strokeStyle = col;
-      ctx.lineWidth = Math.max(2, r * 0.45);
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      // Circular toothy maw
-      ctx.beginPath();
-      ctx.arc(r * 0.8, 0, r * 0.45, 0, TAU);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(r * 0.8, 0, r * 0.25, 0, TAU);
-      ctx.fillStyle = '#2b0008';
-      ctx.fill();
-      break;
-
-    case 'spore':
-      // Living Acid Spore: Floating pulsating hazard bulb
-      var spPulse = Math.sin(t * 10 + e.x) * 0.15;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * (0.85 + spPulse), 0, TAU);
-      ctx.fillStyle = 'rgba(255, 159, 28, 0.45)';
-      ctx.fill();
-      ctx.strokeStyle = '#a7ff00';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Core toxic droplet
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.42, 0, TAU);
-      ctx.fillStyle = '#a7ff00';
-      ctx.fill();
-
-      // 3 twitching flagella
-      ctx.strokeStyle = 'rgba(167, 255, 0, 0.65)';
-      ctx.lineWidth = 1.2;
-      for (var fli = 0; fli < 3; fli++){
-        var fla = Math.PI - 0.4 + fli * 0.4;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(fla) * r * 0.8, Math.sin(fla) * r * 0.8);
-        ctx.lineTo(Math.cos(fla) * r * 1.5 + Math.sin(t * 14 + fli) * 3, Math.sin(fla) * r * 1.5);
-        ctx.stroke();
-      }
-      break;
-
     default:
       // Robust Fallback Vector Fighter (ensures no entity is ever invisible)
+      ctx.save();
+      ctx.shadowColor = col; ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.moveTo(r * 1.1, 0);
       ctx.lineTo(-r * 0.7, -r * 0.7);
       ctx.lineTo(-r * 0.3, 0);
       ctx.lineTo(-r * 0.7, r * 0.7);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(10, 14, 24, 0.85)';
+      ctx.fillStyle = 'rgba(10, 14, 24, 0.90)';
       ctx.fill();
       ctx.strokeStyle = col;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.stroke();
+      ctx.restore();
+
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(r * 1.05, 0); ctx.lineTo(-r * 0.65, -r * 0.65);
+      ctx.stroke();
+
       ctx.beginPath();
       ctx.arc(0, 0, r * 0.2, 0, TAU);
       ctx.fillStyle = col;
@@ -11530,6 +12120,24 @@ function drawPlayer(){
   var hull = (p.inv > 0 && Math.floor(t*28) % 2) ? '#ffffff'
            : (p.flash > 0 ? '#ff9aa8' : (overdriveActive ? overdriveCol : '#35f0ff'));
 
+  // 1. Underglow pass
+  ctx.save();
+  ctx.shadowColor = overdriveActive ? overdriveCol : '#35f0ff';
+  ctx.shadowBlur = 10;
+  ctx.strokeStyle = overdriveActive ? overdriveCol : 'rgba(53, 240, 255, 0.45)';
+  ctx.lineWidth = 3.0;
+  ctx.beginPath();
+  ctx.moveTo(vr*1.45, 0);
+  ctx.lineTo(-vr*0.2, -vr*0.62);
+  ctx.lineTo(-vr*0.75, -vr*0.95);
+  ctx.lineTo(-vr*0.85, -vr*0.28);
+  ctx.lineTo(-vr*0.85, vr*0.28);
+  ctx.lineTo(-vr*0.75, vr*0.95);
+  ctx.lineTo(-vr*0.2, vr*0.62);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+
   // Main delta-wing interceptor chassis
   ctx.beginPath();
   ctx.moveTo(vr*1.45, 0);
@@ -11549,6 +12157,18 @@ function drawPlayer(){
   // Layer 2: Faceted Inner Armor Insets
   ctx.beginPath();
   ctx.moveTo(vr * 1.15, 0);
+  ctx.lineTo(-vr * 0.15, -vr * 0.48);
+  ctx.lineTo(-vr * 0.60, -vr * 0.72);
+  ctx.lineTo(-vr * 0.65, -vr * 0.22);
+  ctx.lineTo(-vr * 0.65, vr * 0.22);
+  ctx.lineTo(-vr * 0.60, vr * 0.72);
+  ctx.lineTo(-vr * 0.15, vr * 0.48);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(53, 240, 255, 0.35)';
+  ctx.lineWidth = 1.0;
+  ctx.stroke();
   ctx.lineTo(-vr * 0.15, -vr * 0.48);
   ctx.lineTo(-vr * 0.60, -vr * 0.72);
   ctx.lineTo(-vr * 0.65, -vr * 0.22);
@@ -11778,22 +12398,42 @@ function drawPlayer(){
     }
   }
 
-  /* === Crystalline Cockpit Canopy === */
+  /* === Faceted Crystalline Cockpit Canopy === */
+  // Base glass fill
   ctx.beginPath();
-  ctx.moveTo(vr*0.75, 0);
-  ctx.lineTo(vr*0.05, -vr*0.26);
-  ctx.lineTo(-vr*0.08, 0);
-  ctx.lineTo(vr*0.05, vr*0.26);
+  ctx.moveTo(vr * 0.78, 0);
+  ctx.lineTo(vr * 0.40, -vr * 0.22);
+  ctx.lineTo(-vr * 0.05, -vr * 0.24);
+  ctx.lineTo(-vr * 0.12, 0);
+  ctx.lineTo(-vr * 0.05, vr * 0.24);
+  ctx.lineTo(vr * 0.40, vr * 0.22);
   ctx.closePath();
-  ctx.fillStyle = overdriveActive ? overdriveCol : '#eafeff';
+  ctx.fillStyle = overdriveActive ? (overdriveCol || '#35f0ff') : 'rgba(10, 26, 44, 0.92)';
   ctx.fill();
-
-  // Canopy Glare Highlight
-  ctx.beginPath();
-  ctx.moveTo(vr * 0.65, 0);
-  ctx.lineTo(vr * 0.15, -vr * 0.18);
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = overdriveActive ? '#ffffff' : '#35f0ff';
   ctx.lineWidth = 1.4;
+  ctx.stroke();
+
+  // Faceted gem-cut reflection panels
+  ctx.beginPath();
+  ctx.moveTo(vr * 0.78, 0);
+  ctx.lineTo(-vr * 0.12, 0);
+  ctx.moveTo(vr * 0.40, -vr * 0.22);
+  ctx.lineTo(vr * 0.25, 0);
+  ctx.lineTo(vr * 0.40, vr * 0.22);
+  ctx.moveTo(-vr * 0.05, -vr * 0.24);
+  ctx.lineTo(vr * 0.05, 0);
+  ctx.lineTo(-vr * 0.05, vr * 0.24);
+  ctx.strokeStyle = overdriveActive ? 'rgba(255, 255, 255, 0.85)' : 'rgba(144, 243, 255, 0.55)';
+  ctx.lineWidth = 1.0;
+  ctx.stroke();
+
+  // Specular gloss glare highlight curve
+  ctx.beginPath();
+  ctx.moveTo(vr * 0.68, -vr * 0.04);
+  ctx.quadraticCurveTo(vr * 0.35, -vr * 0.18, 0, -vr * 0.16);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.6;
   ctx.stroke();
 
   // Central Pilot HUD Reticle Pip
@@ -12539,35 +13179,50 @@ function render(){
   for (var b = 0; b < G.bullets.length; b++){
     var bu = G.bullets[b];
     if (bu.x < vMinX || bu.x > vMaxX || bu.y < vMinY || bu.y > vMaxY) continue;
-    var tl = Math.min(36, Math.hypot(bu.vx, bu.vy)*0.042);
+    var tl = Math.min(38, Math.hypot(bu.vx, bu.vy)*0.044);
     var tailX = bu.x - Math.cos(bu.ang)*tl, tailY = bu.y - Math.sin(bu.ang)*tl;
 
-    // Outer luminous bloom stroke
+    // Layer 1: Outer luminous atmospheric halo bloom stroke
     ctx.beginPath();
     ctx.moveTo(tailX, tailY);
     ctx.lineTo(bu.x, bu.y);
-    ctx.strokeStyle = bu.crit ? 'rgba(255,224,102,0.45)' : 'rgba(53,240,255,0.38)';
-    ctx.lineWidth = bu.r * 3.2; ctx.lineCap = 'round';
+    ctx.strokeStyle = bu.crit ? 'rgba(255,224,102,0.24)' : 'rgba(53,240,255,0.22)';
+    ctx.lineWidth = bu.r * 4.6; ctx.lineCap = 'round';
     ctx.stroke();
 
-    // Inner bright beam tracer
+    // Layer 2: Focused ion wake plasma sheath
     ctx.beginPath();
-    ctx.moveTo(tailX * 0.35 + bu.x * 0.65, tailY * 0.35 + bu.y * 0.65);
+    ctx.moveTo(tailX * 0.45 + bu.x * 0.55, tailY * 0.45 + bu.y * 0.55);
     ctx.lineTo(bu.x, bu.y);
-    ctx.strokeStyle = bu.crit ? '#ffe066' : '#eafeff';
-    ctx.lineWidth = bu.r * 1.6; ctx.stroke();
+    ctx.strokeStyle = bu.crit ? 'rgba(255,224,102,0.85)' : 'rgba(53,240,255,0.85)';
+    ctx.lineWidth = bu.r * 2.2; ctx.stroke();
 
-    // Bullet tip plasma head with glowing white nucleus
-    ctx.beginPath(); ctx.arc(bu.x, bu.y, bu.r * 1.25, 0, TAU);
-    ctx.fillStyle = bu.crit ? 'rgba(255, 224, 102, 0.5)' : 'rgba(53, 240, 255, 0.45)'; ctx.fill();
-    ctx.beginPath(); ctx.arc(bu.x, bu.y, bu.r * 0.75, 0, TAU);
-    ctx.fillStyle = bu.crit ? '#ffe066' : '#ffffff'; ctx.fill();
+    // Layer 3: White-hot diamond core laser needle
+    ctx.beginPath();
+    ctx.moveTo(tailX * 0.2 + bu.x * 0.8, tailY * 0.2 + bu.y * 0.8);
+    ctx.lineTo(bu.x, bu.y);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = bu.r * 1.0; ctx.stroke();
 
-    // Sparkling crit tracer particles
-    if (bu.crit && Math.random() < 0.25 && G.parts.length < 900){
+    // Layer 4: Bullet tip plasma head with outer corona flare & glowing nucleus
+    ctx.beginPath(); ctx.arc(bu.x, bu.y, bu.r * 1.6, 0, TAU);
+    ctx.fillStyle = bu.crit ? 'rgba(255, 224, 102, 0.35)' : 'rgba(53, 240, 255, 0.32)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(bu.x, bu.y, bu.r * 1.1, 0, TAU);
+    ctx.fillStyle = bu.crit ? '#ffe066' : '#90f3ff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(bu.x, bu.y, bu.r * 0.65, 0, TAU);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+
+    // Trailing particle wake sparks
+    if (Math.random() < (bu.crit ? 0.35 : 0.15) && G.parts.length < 900){
       G.parts.push({
-        x: bu.x, y: bu.y, vx: rnd(-30,30), vy: rnd(-30,30),
-        life: 0.16, col: '#ffe066', size: rnd(1.6, 2.8), drag: 0.15
+        x: bu.x - Math.cos(bu.ang) * bu.r * 1.5,
+        y: bu.y - Math.sin(bu.ang) * bu.r * 1.5,
+        vx: -bu.vx * 0.08 + rnd(-20, 20),
+        vy: -bu.vy * 0.08 + rnd(-20, 20),
+        life: rnd(0.12, 0.22),
+        col: bu.crit ? '#ffe066' : '#90f3ff',
+        size: rnd(1.4, bu.crit ? 2.8 : 2.0),
+        drag: 0.15
       });
     }
   }
@@ -12582,6 +13237,20 @@ function render(){
       ctx.save();
       ctx.translate(eu.x, eu.y);
       ctx.rotate(eu.ang);
+
+      // Layer 1: Outer dark matter atmospheric aura
+      ctx.fillStyle = (k === 'eclipse_shard') ? 'rgba(255, 0, 85, 0.25)' : 'rgba(191, 85, 236, 0.22)';
+      ctx.beginPath();
+      ctx.moveTo(17, 0);
+      ctx.lineTo(2, -8);
+      ctx.lineTo(-14, -6);
+      ctx.lineTo(-20, 0);
+      ctx.lineTo(-14, 6);
+      ctx.lineTo(2, 8);
+      ctx.closePath();
+      ctx.fill();
+
+      // Layer 2: Faceted obsidian crystal core
       ctx.fillStyle = (k === 'eclipse_shard') ? '#400010' : '#19002e';
       ctx.strokeStyle = col;
       ctx.lineWidth = 2.2;
@@ -12595,19 +13264,32 @@ function render(){
       ctx.closePath();
       ctx.fill(); ctx.stroke();
 
-      // Glowing core spine
+      // Layer 3: Superconductive energy spine
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(-10, 0);
-      ctx.lineTo(10, 0);
+      ctx.lineTo(11, 0);
       ctx.stroke();
 
-      // Trailing ion flare
+      // Refractive quartz bevel cuts
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(2, -6); ctx.lineTo(-2, 0); ctx.lineTo(2, 6);
+      ctx.stroke();
+
+      // Trailing ion flare with micro whisker jets
       ctx.fillStyle = col;
       ctx.beginPath();
       ctx.arc(-14, 0, 3, 0, TAU);
       ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(-14, -2); ctx.lineTo(-19, -5);
+      ctx.moveTo(-14, 2);  ctx.lineTo(-19, 5);
+      ctx.stroke();
       ctx.restore();
     } else if (k === 'void_comet'){
       // Pulsating Dark-Matter Plasma Comet with Accretion Rings
@@ -12615,41 +13297,77 @@ function render(){
       ctx.translate(eu.x, eu.y);
       var cr = eu.r || 7;
       var rotA = G.t * 6 + eb;
-      // Rotating outer accretion ring
+
+      // Layer 1: Volumetric outer atmospheric corona halo
+      ctx.fillStyle = (col === '#ff0033' || col === '#ff0055') ? 'rgba(255, 0, 85, 0.22)' : 'rgba(191, 85, 236, 0.20)';
+      ctx.beginPath();
+      ctx.arc(0, 0, cr * 2.1, 0, TAU);
+      ctx.fill();
+
+      // Layer 2: Rotating outer accretion ring with orbital dust nodes
       ctx.strokeStyle = col;
       ctx.lineWidth = 1.8;
       ctx.beginPath();
       ctx.ellipse(0, 0, cr * 1.8, cr * 0.7, rotA, 0, TAU);
       ctx.stroke();
-      // Second counter-rotating accretion ring
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+
+      // Layer 3: Second counter-rotating accretion ring
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.ellipse(0, 0, cr * 1.5, cr * 0.5, -rotA * 1.2, 0, TAU);
       ctx.stroke();
-      // Dense plasma orb
-      ctx.fillStyle = col;
+
+      // Orbital dust nodes on accretion rings
+      ctx.fillStyle = '#ffffff';
+      for (var dri = 0; dri < 2; dri++){
+        var dra = rotA + dri * Math.PI;
+        ctx.fillRect(Math.cos(dra) * cr * 1.7 - 1, Math.sin(dra) * cr * 0.6 - 1, 2, 2);
+      }
+
+      // Layer 4: Chromatic gradient plasma orb
+      var cGrd = ctx.createRadialGradient(0, 0, 1, 0, 0, cr);
+      cGrd.addColorStop(0, '#ffffff');
+      cGrd.addColorStop(0.35, col);
+      cGrd.addColorStop(1, '#1b001f');
+      ctx.fillStyle = cGrd;
       ctx.beginPath();
       ctx.arc(0, 0, cr, 0, TAU);
       ctx.fill();
-      // Blinding white inner core
+
+      // Layer 5: Blinding white inner core with star-cross glint
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(0, 0, cr * 0.45, 0, TAU);
+      ctx.arc(0, 0, cr * 0.42, 0, TAU);
       ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(-cr * 0.8, 0); ctx.lineTo(cr * 0.8, 0);
+      ctx.moveTo(0, -cr * 0.8); ctx.lineTo(0, cr * 0.8);
+      ctx.stroke();
       ctx.restore();
     } else if (k === 'void_needle'){
       // Bio-Electric Stinger Needle with Helical Ribbons
       ctx.save();
       ctx.translate(eu.x, eu.y);
       ctx.rotate(eu.ang);
+
+      // Layer 1: Friction halo
+      ctx.strokeStyle = 'rgba(224, 170, 255, 0.3)';
+      ctx.lineWidth = 4.5;
+      ctx.beginPath();
+      ctx.moveTo(16, 0); ctx.lineTo(-14, 0); ctx.stroke();
+
+      // Layer 2: Main core lance
       ctx.strokeStyle = col;
       ctx.lineWidth = 2.4;
       ctx.beginPath();
       ctx.moveTo(16, 0);
       ctx.lineTo(-14, 0);
       ctx.stroke();
-      // Helical DNA / bio-conduit weave
+
+      // Layer 3: Helical DNA / bio-conduit double strand
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
@@ -12658,7 +13376,15 @@ function render(){
         if (hi === -12) ctx.moveTo(hi, hy); else ctx.lineTo(hi, hy);
       }
       ctx.stroke();
-      // Barbed tip
+      ctx.beginPath();
+      for (var hi2 = -12; hi2 <= 12; hi2 += 3){
+        var hy2 = -Math.sin(hi2 * 0.6 + G.t * 18) * 4;
+        if (hi2 === -12) ctx.moveTo(hi2, hy2); else ctx.lineTo(hi2, hy2);
+      }
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.stroke();
+
+      // Layer 4: Barbed lancet tip
       ctx.fillStyle = col;
       ctx.beginPath();
       ctx.moveTo(16, 0);
@@ -12667,6 +13393,8 @@ function render(){
       ctx.lineTo(8, 4);
       ctx.closePath();
       ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(14, -1, 2, 2);
       ctx.restore();
     } else if (k === 'acid_bile'){
       // Sizzling Virulent Bio-Acid Globule
@@ -12674,19 +13402,46 @@ function render(){
       ctx.translate(eu.x, eu.y);
       var ar = eu.r || 7.5;
       var aRot = G.t * 8 + eb;
-      ctx.fillStyle = 'rgba(167, 255, 0, 0.35)';
+
+      // Layer 1: Boiling toxic vapor halo with simmering distortion
+      ctx.fillStyle = 'rgba(167, 255, 0, 0.28)';
       ctx.beginPath();
-      ctx.arc(0, 0, ar * 1.35 + Math.sin(aRot) * 1.5, 0, TAU);
+      ctx.arc(0, 0, ar * 1.5 + Math.sin(aRot * 1.5) * 1.8, 0, TAU);
       ctx.fill();
-      ctx.fillStyle = '#a7ff00';
+
+      // Layer 2: Sizzling surface membrane with oscillating vesicles
+      ctx.fillStyle = 'rgba(200, 255, 0, 0.45)';
+      ctx.beginPath();
+      ctx.arc(0, 0, ar * 1.2 + Math.sin(aRot) * 1.2, 0, TAU);
+      ctx.fill();
+
+      // Micro bubbling vesicles along perimeter
+      ctx.fillStyle = '#ccff33';
+      for (var vi = 0; vi < 4; vi++){
+        var va = aRot + vi * (TAU / 4);
+        var vx = Math.cos(va) * ar * 0.95;
+        var vy = Math.sin(va) * ar * 0.95;
+        ctx.beginPath();
+        ctx.arc(vx, vy, 1.8, 0, TAU);
+        ctx.fill();
+      }
+
+      // Layer 3: Corrosive lime-emerald body
+      var aGrd = ctx.createRadialGradient(0, 0, 1, 0, 0, ar);
+      aGrd.addColorStop(0, '#ffffff');
+      aGrd.addColorStop(0.4, '#a7ff00');
+      aGrd.addColorStop(1, '#336600');
+      ctx.fillStyle = aGrd;
       ctx.strokeStyle = '#d4ff00';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
       ctx.arc(0, 0, ar, 0, TAU);
       ctx.fill(); ctx.stroke();
+
+      // Layer 4: Digestive enzyme nucleus
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(0, 0, ar * 0.4, 0, TAU);
+      ctx.arc(0, 0, ar * 0.38, 0, TAU);
       ctx.fill();
       ctx.restore();
     } else if (k === 'bone_spine'){
@@ -12694,24 +13449,47 @@ function render(){
       ctx.save();
       ctx.translate(eu.x, eu.y);
       ctx.rotate(eu.ang);
-      ctx.fillStyle = '#ffffff';
+
+      // Layer 1: Bio-electric friction halo
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.lineWidth = 4.0;
+      ctx.beginPath();
+      ctx.moveTo(15, 0); ctx.lineTo(-15, 0); ctx.stroke();
+
+      // Layer 2: Carved ivory bone core with faceted bevels
+      ctx.fillStyle = '#f8f9fa';
       ctx.strokeStyle = col;
       ctx.lineWidth = 1.8;
       ctx.beginPath();
-      ctx.moveTo(14, 0);
-      ctx.lineTo(2, -3.5);
+      ctx.moveTo(15, 0);
+      ctx.lineTo(3, -3.8);
       ctx.lineTo(-10, -2);
-      ctx.lineTo(-14, 0);
+      ctx.lineTo(-15, 0);
       ctx.lineTo(-10, 2);
-      ctx.lineTo(2, 3.5);
+      ctx.lineTo(3, 3.8);
       ctx.closePath();
       ctx.fill(); ctx.stroke();
+
+      // Layer 3: Backward-raking recurve barbs with blood grooves
       ctx.strokeStyle = col;
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(0, -3); ctx.lineTo(-4, -6);
-      ctx.moveTo(0, 3); ctx.lineTo(-4, 6);
+      ctx.moveTo(1, -3); ctx.lineTo(-4, -6.5); ctx.lineTo(-1, -7.5);
+      ctx.moveTo(1, 3);  ctx.lineTo(-4, 6.5);  ctx.lineTo(-1, 7.5);
       ctx.stroke();
+
+      // Central dorsal marrow seam
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(-11, 0); ctx.lineTo(10, 0); ctx.stroke();
+
+      // Obsidian needle tip
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(15, 0); ctx.lineTo(10, -1.5); ctx.lineTo(10, 1.5);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     } else if (k === 'voracis_plasma'){
       // Undulating Globular Bio-Plasma Singularity
@@ -12719,48 +13497,73 @@ function render(){
       ctx.translate(eu.x, eu.y);
       var pr = eu.r || 9.0;
       var pRot = G.t * 5 + eb * 0.8;
-      ctx.strokeStyle = 'rgba(255, 0, 85, 0.45)';
-      ctx.lineWidth = 2;
+
+      // Layer 1: Warped gravitational distortion halo
+      ctx.strokeStyle = 'rgba(255, 0, 85, 0.35)';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(0, 0, pr * 1.35 + Math.sin(pRot * 2) * 2, 0, TAU);
+      ctx.arc(0, 0, pr * 1.5 + Math.sin(pRot * 2) * 2, 0, TAU);
       ctx.stroke();
+
+      // Layer 2: Counter-rotating coronal plasma shock ring
+      ctx.strokeStyle = 'rgba(255, 143, 216, 0.55)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, pr * 1.3, pr * 0.8, -pRot * 1.5, 0, TAU);
+      ctx.stroke();
+
+      // Layer 3: Multi-stop rich radial gradient core
       var pGrd = ctx.createRadialGradient(0, 0, 1, 0, 0, pr);
       pGrd.addColorStop(0, '#ffffff');
-      pGrd.addColorStop(0.4, '#ff0055');
-      pGrd.addColorStop(1, '#3b0014');
+      pGrd.addColorStop(0.35, '#ff0055');
+      pGrd.addColorStop(0.75, '#7b0022');
+      pGrd.addColorStop(1, '#1a0008');
       ctx.fillStyle = pGrd;
       ctx.beginPath();
       ctx.arc(0, 0, pr, 0, TAU);
       ctx.fill();
+
+      // Layer 4: White-hot singularity center with cross flare
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, pr * 0.35, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(-pr * 0.65, 0); ctx.lineTo(pr * 0.65, 0);
+      ctx.moveTo(0, -pr * 0.65); ctx.lineTo(0, pr * 0.65);
+      ctx.stroke();
       ctx.restore();
     } else {
       // Standard Aerodynamic Plasma Bolt with Tapered Glow Head
-      var eTl = Math.min(26, Math.hypot(eu.vx || 0, eu.vy || 0) * 0.04);
+      var eTl = Math.min(28, Math.hypot(eu.vx || 0, eu.vy || 0) * 0.042);
       var eTailX = eu.x - Math.cos(eu.ang) * (eTl || 18);
       var eTailY = eu.y - Math.sin(eu.ang) * (eTl || 18);
 
-      // Outer plasma trail bloom
+      // Layer 1: Outer plasma trail bloom
       ctx.beginPath();
       ctx.moveTo(eTailX, eTailY);
       ctx.lineTo(eu.x, eu.y);
       ctx.strokeStyle = col;
-      ctx.lineWidth = eu.r * 2.2; ctx.lineCap = 'round';
-      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = eu.r * 2.8; ctx.lineCap = 'round';
+      ctx.globalAlpha = 0.35;
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Inner beam
+      // Layer 2: Inner focused beam
       ctx.beginPath();
-      ctx.moveTo(eTailX * 0.4 + eu.x * 0.6, eTailY * 0.4 + eu.y * 0.6);
+      ctx.moveTo(eTailX * 0.35 + eu.x * 0.65, eTailY * 0.35 + eu.y * 0.65);
       ctx.lineTo(eu.x, eu.y);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = eu.r * 1.2;
+      ctx.lineWidth = eu.r * 1.3;
       ctx.stroke();
 
-      ctx.beginPath(); ctx.arc(eu.x, eu.y, eu.r, 0, TAU);
+      // Layer 3: Tip energy orb
+      ctx.beginPath(); ctx.arc(eu.x, eu.y, eu.r * 1.25, 0, TAU);
       ctx.fillStyle = col; ctx.fill();
 
-      ctx.beginPath(); ctx.arc(eu.x, eu.y, eu.r * 0.45, 0, TAU);
+      ctx.beginPath(); ctx.arc(eu.x, eu.y, eu.r * 0.55, 0, TAU);
       ctx.fillStyle = '#ffffff'; ctx.fill();
     }
   }
@@ -14161,7 +14964,14 @@ function drawHUD(){
   else ctx.rect(sx, sy, skW, skH);
   ctx.fill();
 
-  // Keycap Badge [Q] (Left side)
+  // Artisanal specular edge highlight & mechanical corner rivets
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.fillRect(sx + 4, sy + 1, skW - 8, 1);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(sx + 3, sy + 3, 1.5, 1.5);
+  ctx.fillRect(sx + skW - 4.5, sy + 3, 1.5, 1.5);
+
+  // Keycap Badge [Q] (Left side with tactile 3D bevels)
   var kw = 18, kh = 18;
   var kx = sx + 6, ky = sy + (skH - kh)/2;
   ctx.fillStyle = (sk && sData.cd <= 0) ? sk.col : 'rgba(255, 255, 255, 0.12)';
@@ -14170,6 +14980,12 @@ function drawHUD(){
   else ctx.rect(kx, ky, kw, kh);
   ctx.fill();
   ctx.strokeStyle = sk ? sk.col : '#5a7080'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Tactile keycap specular and shadow bevel
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(kx + 1, ky + kh - 1); ctx.lineTo(kx + 1, ky + 1); ctx.lineTo(kx + kw - 1, ky + 1); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.beginPath(); ctx.moveTo(kx + 1, ky + kh - 1); ctx.lineTo(kx + kw - 1, ky + kh - 1); ctx.lineTo(kx + kw - 1, ky + 1); ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.font = 'bold 11px ui-monospace,monospace';
@@ -14185,10 +15001,11 @@ function drawHUD(){
     else ctx.rect(sx, sy, skW, skH);
     ctx.stroke();
 
-    // Circular Icon Bay
+    // Circular Icon Bay with recessed bezel socket
     var bayX = sx + 34, bayY = sy + skH/2;
     ctx.fillStyle = ready ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath(); ctx.arc(bayX, bayY, 10, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(bayX, bayY, 11, 0, TAU); ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'; ctx.lineWidth = 1; ctx.stroke();
     drawIcon(sk.icon, bayX, bayY, 13, ready ? sk.col : '#829bb0');
 
     // Radial cooldown sweep overlay on icon bay
@@ -14222,6 +15039,8 @@ function drawHUD(){
       var actFrac = clamp(sData.activeT / actDur, 0, 1);
       ctx.fillStyle = '#ffe066';
       ctx.fillRect(sx + 48, sy + 35, barTrackW * actFrac, 3);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.fillRect(sx + 48, sy + 35, barTrackW * actFrac, 1);
     } else if (ready){
       ctx.fillStyle = sk.col;
       ctx.fillText('READY', sx + 48, sy + 32);
@@ -14234,6 +15053,8 @@ function drawHUD(){
       var cdFrac = clamp(1 - (sData.cd / (sData.maxCd || 10)), 0, 1);
       ctx.fillStyle = sk.col;
       ctx.fillRect(sx + 48, sy + 35, barTrackW * cdFrac, 3);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.fillRect(sx + 48, sy + 35, barTrackW * cdFrac, 1);
     }
   } else {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -14266,9 +15087,23 @@ function drawHUD(){
     else ctx.rect(midX, deckY, midW, skH);
     ctx.fill();
 
+    // Brushed metal sheen gradient
+    var pSheen = ctx.createLinearGradient(midX, deckY, midX, deckY + 14);
+    pSheen.addColorStop(0, 'rgba(255, 255, 255, 0.07)');
+    pSheen.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = pSheen;
+    ctx.fillRect(midX + 2, deckY + 1, midW - 4, 14);
+
     ctx.strokeStyle = 'rgba(53, 240, 255, 0.28)';
     ctx.lineWidth = 1;
     ctx.stroke();
+
+    // Artisanal corner rivets
+    ctx.fillStyle = 'rgba(53, 240, 255, 0.45)';
+    ctx.fillRect(midX + 4, deckY + 4, 2, 2);
+    ctx.fillRect(midX + midW - 6, deckY + 4, 2, 2);
+    ctx.fillRect(midX + 4, deckY + skH - 6, 2, 2);
+    ctx.fillRect(midX + midW - 6, deckY + skH - 6, 2, 2);
 
     // Subtle side accents
     ctx.fillStyle = 'rgba(53, 240, 255, 0.6)';
@@ -14289,6 +15124,10 @@ function drawHUD(){
 
     var titleText = 'PASSIVE MATRIX [' + totalBuffs + ']';
     var detailText = upgList.length > 0 ? upgList.join('  •  ') : 'NO PASSIVE MODS INSTALLED  •  DEFEAT ENEMIES TO HARVEST XP';
+
+    // Tactile micro-swatch dot
+    ctx.fillStyle = '#35f0ff';
+    ctx.beginPath(); ctx.arc(midX + 34, deckY + 15, 2, 0, TAU); ctx.fill();
 
     ctx.textAlign = 'left';
     ctx.font = 'bold 11px ui-monospace,monospace';
@@ -14322,6 +15161,8 @@ function drawHUD(){
     var xpFrac = clamp(p.xp / p.xpNext, 0, 1);
     ctx.fillStyle = '#b388ff';
     ctx.fillRect(xpBarX, xpBarY, xpBarW * xpFrac, xpBarH);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillRect(xpBarX, xpBarY, xpBarW * xpFrac, 1);
     ctx.restore();
   }
 
@@ -14383,12 +15224,19 @@ function drawHUD(){
   else ctx.rect(pillX, pillY, pillW, pillH);
   ctx.fill();
 
+  // Artisanal specular sheen across top edge
+  var pillSheen = ctx.createLinearGradient(pillX, pillY, pillX, pillY + 14);
+  pillSheen.addColorStop(0, 'rgba(255, 255, 255, 0.09)');
+  pillSheen.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = pillSheen;
+  ctx.fillRect(pillX + 4, pillY + 1, pillW - 8, 14);
+
   var borderCol = (G.boss && G.boss.dormant) ? 'rgba(53, 240, 255, 0.65)' : (isSec2Wave ? 'rgba(191, 85, 236, 0.75)' : (G.boss && (G.boss.phase === 2 || G.boss.phase2) ? '#ff0055' : 'rgba(224, 170, 255, 0.75)'));
   ctx.strokeStyle = borderCol;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Corner chamfer ticks
+  // Corner chamfer ticks & brass bolt studs
   ctx.strokeStyle = '#ffe066';
   ctx.lineWidth = 1.8;
   var cLen = 5;
@@ -14396,6 +15244,10 @@ function drawHUD(){
   ctx.moveTo(pillX, pillY + cLen); ctx.lineTo(pillX, pillY); ctx.lineTo(pillX + cLen, pillY);
   ctx.moveTo(pillX + pillW - cLen, pillY); ctx.lineTo(pillX + pillW, pillY); ctx.lineTo(pillX + pillW, pillY + cLen);
   ctx.stroke();
+
+  ctx.fillStyle = '#ffe066';
+  ctx.fillRect(pillX + 5, pillY + 4, 2, 2);
+  ctx.fillRect(pillX + pillW - 7, pillY + 4, 2, 2);
 
   if (isSec2Wave){
     // --- SECTOR 02 BIO-PREDATOR COMBAT TELEMETRY (WAVES 6-9) ---
@@ -14724,13 +15576,20 @@ function drawHUD(){
   else ctx.rect(bx0, by0, bw, bh);
   ctx.fill();
 
+  // Artisanal brushed metal sheen gradient
+  var cSheen = ctx.createLinearGradient(bx0, by0, bx0, by0 + 16);
+  cSheen.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+  cSheen.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = cSheen;
+  ctx.fillRect(bx0 + 2, by0 + 1, bw - 4, 16);
+
   // Low hull warning pulsating border
   var cockPulse = lowHull ? 0.6 + Math.sin(G.t * 10) * 0.35 : 0.4;
   ctx.strokeStyle = lowHull ? ('rgba(255, 77, 109, ' + cockPulse + ')') : 'rgba(53, 240, 255, ' + cockPulse + ')';
   ctx.lineWidth = lowHull ? 2 : 1.2;
   ctx.stroke();
 
-  // Corner tech brackets
+  // Corner tech brackets & hardware bolt studs
   ctx.strokeStyle = lowHull ? '#ff4d6d' : '#ffe066';
   ctx.lineWidth = 1.8;
   ctx.beginPath();
@@ -14738,7 +15597,11 @@ function drawHUD(){
   ctx.moveTo(bx0 + bw - 6, by0); ctx.lineTo(bx0 + bw, by0); ctx.lineTo(bx0 + bw, by0 + 6);
   ctx.stroke();
 
-  // 1. Hull HP Bar with gradient and ticks
+  ctx.fillStyle = lowHull ? '#ff4d6d' : '#ffe066';
+  ctx.fillRect(bx0 + 4, by0 + 4, 2, 2);
+  ctx.fillRect(bx0 + bw - 6, by0 + 4, 2, 2);
+
+  // 1. Hull HP Bar with gradient, ticks, and specular glint
   var barX = bx0 + 36, barY = by0 + 10, barW = bw - 48, barH = 13;
   drawIcon('heart', bx0 + 20, barY + barH/2, 13, hpc);
 
@@ -14756,6 +15619,8 @@ function drawHUD(){
   }
   ctx.fillStyle = hpGrad;
   ctx.fillRect(barX, barY, barW * hpFrac, barH);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.fillRect(barX, barY, barW * hpFrac, 1.5);
 
   // Border & ticks
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)'; ctx.lineWidth = 1;
@@ -14786,6 +15651,8 @@ function drawHUD(){
     shGrad.addColorStop(0, '#00f5d4'); shGrad.addColorStop(1, '#7dffcf');
     ctx.fillStyle = shGrad;
     ctx.fillRect(barX, curSubY, barW * shFrac, shBarH);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillRect(barX, curSubY, barW * shFrac, 1);
     ctx.strokeStyle = 'rgba(0, 245, 212, 0.4)'; ctx.lineWidth = 0.8;
     ctx.strokeRect(barX, curSubY, barW, shBarH);
 
@@ -14807,6 +15674,8 @@ function drawHUD(){
   xpGrad.addColorStop(0, '#9d4edd'); xpGrad.addColorStop(1, '#c77dff');
   ctx.fillStyle = xpGrad;
   ctx.fillRect(barX, curSubY, barW * xpFrac, xpBarH);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.fillRect(barX, curSubY, barW * xpFrac, 1);
   ctx.strokeStyle = 'rgba(179, 136, 255, 0.4)'; ctx.lineWidth = 0.8;
   ctx.strokeRect(barX, curSubY, barW, xpBarH);
 
@@ -14996,11 +15865,25 @@ function drawPause(){
   else ctx.rect(cx0, cy0, cw, ch);
   ctx.fill();
 
+  // Artisanal specular header sheen gradient
+  var pSheen = ctx.createLinearGradient(cx0, cy0, cx0, cy0 + 32);
+  pSheen.addColorStop(0, 'rgba(53, 240, 255, 0.08)');
+  pSheen.addColorStop(1, 'rgba(53, 240, 255, 0)');
+  ctx.fillStyle = pSheen;
+  ctx.fillRect(cx0 + 2, cy0 + 1, cw - 4, 32);
+
   // Outer glowing border
   var borderPulse = 0.55 + Math.sin(G.pauseT * 3) * 0.2;
   ctx.strokeStyle = 'rgba(53, 240, 255, ' + borderPulse + ')';
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  // Hardware corner studs
+  ctx.fillStyle = '#ffe066';
+  ctx.fillRect(cx0 + 6, cy0 + 6, 2, 2);
+  ctx.fillRect(cx0 + cw - 8, cy0 + 6, 2, 2);
+  ctx.fillRect(cx0 + 6, cy0 + ch - 8, 2, 2);
+  ctx.fillRect(cx0 + cw - 8, cy0 + ch - 8, 2, 2);
 
   // Tech corner brackets
   var bl = 16;
@@ -15052,6 +15935,13 @@ function drawPause(){
   var colW = Math.floor(cw / 2 - 50);
 
   function drawStat(iconName, x, y, label, val, valCol){
+    // Recessed telemetry pod slot
+    ctx.fillStyle = 'rgba(5, 9, 18, 0.55)';
+    ctx.fillRect(x - 2, y - 13, colW + 4, 18);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(x - 2, y - 13, colW + 4, 18);
+
     drawIcon(iconName, x + 6, y - 4, 11, valCol || '#35f0ff');
     ctx.fillStyle = '#829bb0';
     ctx.font = '11px ui-monospace,monospace';
@@ -15101,6 +15991,12 @@ function drawPause(){
   ctx.lineWidth = isResHover ? 2 : 1.5;
   ctx.stroke();
 
+  // Tactile 3D button bevel
+  ctx.fillStyle = isResHover ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(resX + 3, btnY + 1, btnW - 6, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(resX + 3, btnY + btnH - 1, btnW - 6, 1);
+
   drawIcon('play', resX + btnW / 2 - 38, btnY + 16, 12, isResHover ? '#ffffff' : '#35f0ff');
   ctx.textAlign = 'center';
   ctx.font = 'bold 12px ui-monospace,monospace';
@@ -15123,6 +16019,12 @@ function drawPause(){
   ctx.lineWidth = isRstHover ? 2 : 1.5;
   ctx.stroke();
 
+  // Tactile 3D button bevel
+  ctx.fillStyle = isRstHover ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(rstX + 3, btnY + 1, btnW - 6, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(rstX + 3, btnY + btnH - 1, btnW - 6, 1);
+
   drawIcon('restart', rstX + btnW / 2 - 40, btnY + 16, 12, isRstHover ? '#ffffff' : '#ff9f1c');
   ctx.textAlign = 'center';
   ctx.font = 'bold 12px ui-monospace,monospace';
@@ -15144,6 +16046,12 @@ function drawPause(){
   ctx.strokeStyle = isHmHover ? '#ffffff' : '#ff4d6d';
   ctx.lineWidth = isHmHover ? 2 : 1.5;
   ctx.stroke();
+
+  // Tactile 3D button bevel
+  ctx.fillStyle = isHmHover ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(hmX + 3, btnY + 1, btnW - 6, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(hmX + 3, btnY + btnH - 1, btnW - 6, 1);
 
   drawIcon('home', hmX + btnW / 2 - 44, btnY + 16, 12, isHmHover ? '#ffffff' : '#ff4d6d');
   ctx.textAlign = 'center';
@@ -15307,12 +16215,18 @@ function drawBuffTray(){
 
     ctx.save();
 
-    // 1. Sleek compact glass fill
+    // 1. Sleek compact glass fill with artisanal specular edge highlight
     ctx.fillStyle = isHover ? 'rgba(25, 45, 75, 0.75)' : 'rgba(8, 16, 30, 0.48)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(cx, drawY, cw, ch, 6);
     else ctx.rect(cx, drawY, cw, ch);
     ctx.fill();
+
+    // Artisanal top specular glint & vertical micro-accent swatch
+    ctx.fillStyle = isHover ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(cx + 4, drawY + 1, cw - 8, 1);
+    ctx.fillStyle = isHover ? '#ffe066' : themeCol;
+    ctx.fillRect(cx + 2, drawY + 8, 2, ch - 16);
 
     // Subtle gloss edge
     if (isHover){
@@ -15328,7 +16242,7 @@ function drawBuffTray(){
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // 3. Keycap Badge [1], [2], [3] (Left side)
+    // 3. Keycap Badge [1], [2], [3] (Left side with tactile 3D bevels)
     var badgeW = 24, badgeH = 22;
     var badgeX = cx + 8, badgeY = drawY + (ch - badgeH) / 2;
     ctx.fillStyle = isHover ? '#ffe066' : 'rgba(255, 224, 102, 0.18)';
@@ -15338,6 +16252,13 @@ function drawBuffTray(){
     ctx.fill();
     ctx.strokeStyle = isHover ? '#ffe066' : 'rgba(255, 224, 102, 0.6)';
     ctx.lineWidth = 1; ctx.stroke();
+
+    // Tactile keycap bevel
+    ctx.strokeStyle = isHover ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(badgeX + 1, badgeY + badgeH - 1); ctx.lineTo(badgeX + 1, badgeY + 1); ctx.lineTo(badgeX + badgeW - 1, badgeY + 1); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.beginPath(); ctx.moveTo(badgeX + 1, badgeY + badgeH - 1); ctx.lineTo(badgeX + badgeW - 1, badgeY + badgeH - 1); ctx.lineTo(badgeX + badgeW - 1, badgeY + 1); ctx.stroke();
 
     ctx.textAlign = 'center';
     ctx.font = 'bold 11px ui-monospace,monospace';
@@ -15572,6 +16493,20 @@ function drawVictory(){
     else ctx.rect(vcx, vcy, vcw, vch);
     ctx.fill();
 
+    // Artisanal debrief specular sheen & corner brackets
+    var vSheen = ctx.createLinearGradient(vcx, vcy, vcx, vcy + 24);
+    vSheen.addColorStop(0, 'rgba(61, 220, 151, 0.12)');
+    vSheen.addColorStop(1, 'rgba(61, 220, 151, 0)');
+    ctx.fillStyle = vSheen;
+    ctx.fillRect(vcx + 2, vcy + 1, vcw - 4, 24);
+
+    ctx.strokeStyle = '#ffe066';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(vcx, vcy + 6); ctx.lineTo(vcx, vcy); ctx.lineTo(vcx + 6, vcy);
+    ctx.moveTo(vcx + vcw - 6, vcy); ctx.lineTo(vcx + vcw, vcy); ctx.lineTo(vcx + vcw, vcy + 6);
+    ctx.stroke();
+
     var vpPulse = 0.6 + Math.sin(G.t * 3) * 0.3;
     ctx.strokeStyle = 'rgba(61, 220, 151, ' + vpPulse + ')';
     ctx.lineWidth = 1.8;
@@ -15671,12 +16606,18 @@ function drawVictory(){
     var r = b.rect;
     var isHover = (mouse && mouse.active && mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h);
 
-    // Transparent glass button fill
+    // Transparent glass button fill with artisanal bevel
     ctx.fillStyle = isHover ? 'rgba(15, 30, 50, 0.85)' : 'rgba(5, 10, 20, 0.68)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, 6);
     else ctx.rect(r.x, r.y, r.w, r.h);
     ctx.fill();
+
+    // Tactile 3D button bevel
+    ctx.fillStyle = isHover ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.18)';
+    ctx.fillRect(r.x + 3, r.y + 1, r.w - 6, 1);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(r.x + 3, r.y + r.h - 1, r.w - 6, 1);
 
     // High glow border
     ctx.strokeStyle = isHover ? '#ffffff' : b.col;
@@ -15695,6 +16636,13 @@ function drawVictory(){
     else ctx.rect(kx, ky, kw, kh);
     ctx.fill();
     ctx.strokeStyle = b.col; ctx.lineWidth = 1; ctx.stroke();
+
+    // Tactile keycap bevel
+    ctx.strokeStyle = isHover ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.28)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(kx + 1, ky + kh - 1); ctx.lineTo(kx + 1, ky + 1); ctx.lineTo(kx + kw - 1, ky + 1); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.beginPath(); ctx.moveTo(kx + 1, ky + kh - 1); ctx.lineTo(kx + kw - 1, ky + kh - 1); ctx.lineTo(kx + kw - 1, ky + 1); ctx.stroke();
 
     ctx.textAlign = 'center';
     ctx.font = 'bold 11px ui-monospace,monospace';
@@ -15733,6 +16681,13 @@ function drawDead(){
   else ctx.rect(cx0, cy0, cw, ch);
   ctx.fill();
 
+  // Artisanal warning hazard header sheen
+  var dSheen = ctx.createLinearGradient(cx0, cy0, cx0, cy0 + 28);
+  dSheen.addColorStop(0, 'rgba(255, 77, 109, 0.14)');
+  dSheen.addColorStop(1, 'rgba(255, 77, 109, 0)');
+  ctx.fillStyle = dSheen;
+  ctx.fillRect(cx0 + 2, cy0 + 1, cw - 4, 28);
+
   // Crimson outer glowing border
   var pulse = 0.6 + Math.sin(G.t * 4) * 0.25;
   ctx.strokeStyle = 'rgba(255, 77, 109, ' + pulse + ')';
@@ -15742,7 +16697,13 @@ function drawDead(){
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Tech corner brackets
+  // Tech corner brackets & hardware bolt studs
+  ctx.fillStyle = '#ffe066';
+  ctx.fillRect(cx0 + 6, cy0 + 6, 2, 2);
+  ctx.fillRect(cx0 + cw - 8, cy0 + 6, 2, 2);
+  ctx.fillRect(cx0 + 6, cy0 + ch - 8, 2, 2);
+  ctx.fillRect(cx0 + cw - 8, cy0 + ch - 8, 2, 2);
+
   var bl = 16;
   var corners = [[cx0, cy0, 1, 1], [cx0 + cw, cy0, -1, 1], [cx0, cy0 + ch, 1, -1], [cx0 + cw, cy0 + ch, -1, -1]];
   ctx.strokeStyle = '#ffe066';
@@ -15788,6 +16749,13 @@ function drawDead(){
   var colW = Math.floor(cw / 2 - 50);
 
   function drawDeadStat(iconName, x, y, label, val, valCol){
+    // Recessed telemetry pod slot
+    ctx.fillStyle = 'rgba(6, 4, 12, 0.55)';
+    ctx.fillRect(x - 2, y - 13, colW + 4, 18);
+    ctx.strokeStyle = 'rgba(255, 77, 109, 0.12)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(x - 2, y - 13, colW + 4, 18);
+
     drawIcon(iconName, x + 6, y - 4, 11, valCol || '#35f0ff');
     ctx.fillStyle = '#829bb0';
     ctx.font = '11px ui-monospace,monospace';
@@ -15863,6 +16831,12 @@ function drawDead(){
   ctx.lineWidth = isHoverRst ? 2.2 : 1.5;
   ctx.stroke();
 
+  // Tactile 3D button bevel
+  ctx.fillStyle = isHoverRst ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.18)';
+  ctx.fillRect(rstBtnX + 3, rstBtnY + 1, rstBtnW - 6, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(rstBtnX + 3, rstBtnY + rstBtnH - 1, rstBtnW - 6, 1);
+
   drawIcon('restart', W/2 - 120, rstBtnY + 20, 13, isHoverRst ? '#ffffff' : '#35f0ff');
   ctx.textAlign = 'center';
   ctx.font = 'bold 13px ui-monospace,monospace';
@@ -15887,6 +16861,13 @@ function drawDead(){
   ctx.strokeStyle = isHoverDeadHm ? '#ffffff' : '#ff4d6d';
   ctx.lineWidth = isHoverDeadHm ? 2 : 1.2;
   ctx.stroke();
+
+  // Tactile 3D button bevel
+  ctx.fillStyle = isHoverDeadHm ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.18)';
+  ctx.fillRect(deadHmX + 3, secBtnY + 1, secBtnW - 6, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(deadHmX + 3, secBtnY + secBtnH - 1, secBtnW - 6, 1);
+
   drawIcon('home', deadHmX + secBtnW/2 - 44, secBtnY + 17, 12, isHoverDeadHm ? '#ffffff' : '#ff4d6d');
   ctx.textAlign = 'center';
   ctx.font = 'bold 11px ui-monospace,monospace';
@@ -15905,11 +16886,12 @@ function drawDead(){
   ctx.strokeStyle = isHoverDeadTrn ? '#ffffff' : '#c77dff';
   ctx.lineWidth = isHoverDeadTrn ? 2 : 1.2;
   ctx.stroke();
-  drawIcon('target', deadTrnX + secBtnW/2 - 56, secBtnY + 17, 12, isHoverDeadTrn ? '#ffffff' : '#c77dff');
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 11px ui-monospace,monospace';
-  ctx.fillStyle = isHoverDeadTrn ? '#ffffff' : '#c77dff';
-  ctx.fillText('TRAINING [X]', deadTrnX + secBtnW/2 + 8, secBtnY + 21);
+
+  // Tactile 3D button bevel
+  ctx.fillStyle = isHoverDeadTrn ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.18)';
+  ctx.fillRect(deadTrnX + 3, secBtnY + 1, secBtnW - 6, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(deadTrnX + 3, secBtnY + secBtnH - 1, secBtnW - 6, 1);
 
   // Tactile death menu hover chime (distinct button tracking)
   var curDeadHoverId = isHoverRst ? 'rst' : (isHoverDeadHm ? 'home' : (isHoverDeadTrn ? 'trn' : null));
@@ -16773,6 +17755,12 @@ function drawTitle(){
   ctx.lineWidth = isHoverStart ? 2.5 : 1.5;
   ctx.stroke();
 
+  // Tactile 3D button bevel
+  ctx.fillStyle = isHoverStart ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(startX + 4, actY + 1, actBtnW - 8, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(startX + 4, actY + actBtnH - 1, actBtnW - 8, 1);
+
   drawIcon('play', startX + 24, actY + 22, 14, isHoverStart ? '#ffffff' : '#35f0ff');
   ctx.textAlign = 'left';
   ctx.font = 'bold 13px ui-monospace,monospace';
@@ -16796,6 +17784,12 @@ function drawTitle(){
   ctx.strokeStyle = isHoverTrn ? '#ffffff' : '#e0aaff';
   ctx.lineWidth = isHoverTrn ? 2.5 : 1.5;
   ctx.stroke();
+
+  // Tactile 3D button bevel
+  ctx.fillStyle = isHoverTrn ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(trnX + 4, actY + 1, actBtnW - 8, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(trnX + 4, actY + actBtnH - 1, actBtnW - 8, 1);
 
   drawIcon('target', trnX + 24, actY + 22, 14, isHoverTrn ? '#ffffff' : '#e0aaff');
   ctx.textAlign = 'left';
